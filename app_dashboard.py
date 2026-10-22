@@ -78,7 +78,6 @@ def load_data():
 
 df_leader = load_data()
 
-# Update Judul dan Subtitle
 st.title("📊 Production Executive Dashboard")
 st.markdown("Real-time monitoring summary for Management")
 st.divider()
@@ -94,11 +93,13 @@ else:
     completed_df = df_leader[df_leader['Current Process'] == target_completed_process]
     wip_df = df_leader[df_leader['Current Process'] != target_completed_process]
     
-    total_weight = df_leader['Weight (gr)'].sum()
-    completed_weight = completed_df['Weight (gr)'].sum()
-    total_est_24k = df_leader['Est 24K (gr)'].sum()
+    # Convert weights from Grams to Kilograms (1 Kg = 1000 gr)
+    total_weight_kg = df_leader['Weight (gr)'].sum() / 1000.0
+    completed_weight_kg = completed_df['Weight (gr)'].sum() / 1000.0
+    total_est_24k_kg = df_leader['Est 24K (gr)'].sum() / 1000.0
+    wip_est_24k_kg = wip_df['Est 24K (gr)'].sum() / 1000.0
     
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     with col1:
         st.metric("Total Items", len(df_leader))
     with col2:
@@ -106,11 +107,13 @@ else:
     with col3:
         st.metric("Completed (Items)", len(completed_df))
     with col4:
-        st.metric("Total Weight (gr)", f"{total_weight:,.2f}")
+        st.metric("Total Weight (Kg)", f"{total_weight_kg:,.3f}")
     with col5:
-        st.metric("Completed Weight (gr)", f"{completed_weight:,.2f}")
+        st.metric("Completed Weight (Kg)", f"{completed_weight_kg:,.3f}")
     with col6:
-        st.metric("Total Est 24K (gr)", f"{total_est_24k:,.2f}")
+        st.metric("Total Est 24K (Kg)", f"{total_est_24k_kg:,.3f}")
+    with col7:
+        st.metric("WIP Est 24K (Kg)", f"{wip_est_24k_kg:,.3f}")
 
     st.divider()
     st.subheader("📍 Latest Position of Each Material")
@@ -121,6 +124,9 @@ else:
         Material_List=('Material ID', lambda x: '<br>'.join(x.astype(str))),
         Total_Berat=('Weight (gr)', 'sum')
     ).reindex(PROCESS_LIST).fillna({'Count': 0, 'Material_List': 'No materials', 'Total_Berat': 0}).reset_index()
+
+    # Convert chart summary weight to Kg
+    hover_summary['Total_Berat_Kg'] = hover_summary['Total_Berat'] / 1000.0
 
     fig = px.bar(
         hover_summary,
@@ -135,9 +141,9 @@ else:
     fig.update_traces(
         hovertemplate="<b>Process:</b> %{x}<br>" +
                       "<b>Item Count:</b> %{y}<br>" +
-                      "<b>Total Weight:</b> %{customdata[1]:,.2f} gr<br><br>" +
+                      "<b>Total Weight:</b> %{customdata[1]:,.3f} Kg<br><br>" +
                       "<b>Material ID / Batch List:</b><br>%{customdata[0]}<extra></extra>",
-        customdata=hover_summary[['Material_List', 'Total_Berat']].values,
+        customdata=hover_summary[['Material_List', 'Total_Berat_Kg']].values,
         textposition='outside'
     )
 
