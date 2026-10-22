@@ -4,10 +4,11 @@ from datetime import datetime
 import io
 import requests
 import time
+import plotly.express as px
 
 st.set_page_config(page_title="Executive Dashboard", layout="wide")
 
-# Link Google Sheets Pribadi Baru Anda
+# Link Google Sheets Anda
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?usp=sharing"
 
 PROCESS_LIST = [
@@ -38,18 +39,29 @@ def load_data():
         raw_data = io.StringIO(response.text)
         data = pd.read_csv(raw_data, on_bad_lines='skip')
         
+        # Trim space pada nama kolom
         data.columns = [str(col).strip() for col in data.columns]
         
+        # Rename dictionary agar konsisten
         rename_dict = {
             'Material Id': 'Material ID',
             'Weight': 'Weight (gr)',
             'Check-In Time': 'Check-In Time',
-            'Last Update Time': 'Last Update Time'
+            'Last Update Time': 'Last Update Time',
+            'Berat Est 24K': 'Est 24K (gr)',
+            'Est 24K': 'Est 24K (gr)'
         }
         data = data.rename(columns=rename_dict)
         
         if 'Material ID' in data.columns:
             data = data.dropna(subset=['Material ID'])
+            
+        # Konversi kolom angka
+        if 'Weight (gr)' in data.columns:
+            data['Weight (gr)'] = pd.to_numeric(data['Weight (gr)'], errors='coerce').fillna(0)
+            
+        if 'Est 24K (gr)' in data.columns:
+            data['Est 24K (gr)'] = pd.to_numeric(data['Est 24K (gr)'], errors='coerce').fillna(0)
             
         return data
     except Exception as e:
@@ -58,31 +70,69 @@ def load_data():
 
 df_leader = load_data()
 
-st.title("📊 Production Executive Dashboard (PORT: 8502 - View Only)")
-st.markdown("Real-time monitoring summary for Management powered by Google Sheets.")
+st.title("📊 Production Executive Dashboard ")
+st.markdown("Real-time monitoring summary for Management")
 st.divider()
 
 if df_leader.empty or 'Current Process' not in df_leader.columns:
     st.info("⌛ Menghubungkan ke Google Sheets...")
 else:
-    # 1. KPI Summary Metrics
-    col1, col2, col3 = st.columns(3)
+    # 1. KPI Summary Metrics (Termasuk Total Berat)
+    total_weight = df_leader['Weight (gr)'].sum() if 'Weight (gr)' in df_leader.columns else 0
+    total_est_24k = df_leader['Est 24K (gr)'].sum() if 'Est 24K (gr)' in df_leader.columns else 0
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric("Total Materials Processed", len(df_leader))
+        st.metric("Total Items", len(df_leader))
     with col2:
         active_materials = len(df_leader[df_leader['Current Process'] != PROCESS_LIST[-1]])
-        st.metric("Work in Progress (WIP)", active_materials)
+        st.metric("WIP (Items)", active_materials)
     with col3:
         completed_materials = len(df_leader[df_leader['Current Process'] == PROCESS_LIST[-1]])
         st.metric("Completed (Cast Bar)", completed_materials)
+    with col4:
+        st.metric("Total Weight (gr)", f"{total_weight:,.2f}")
+    with col5:
+        st.metric("Total Est 24K (gr)", f"{total_est_24k:,.2f}")
 
+    st.divider()
     st.subheader("📍 Latest Position of Each Material")
 
-    # 2. Chart Visualisasi
-    counts = df_leader['Current Process'].value_counts()
-    chart_data = pd.DataFrame(index=PROCESS_LIST)
-    chart_data['Material Count'] = chart_data.index.map(counts).fillna(0).astype(int)
-    st.bar_chart(chart_data)
+    # 2. Grafik Batang Interaktif dengan Hover Kode Batch / Material ID (Plotly)
+    # Menyiapkan data agregat untuk tooltip hover
+    hover_summary = df_leader.groupby('Current Process').agg(
+        Count=('Material ID', 'count'),
+        Material_List=('Material ID', lambda x: '<br>'.join(x.astype(str))),
+        Total_Berat=('Weight (gr)', 'sum') if 'Weight (gr)' in df_leader.columns else ('Material ID', lambda x: 0)
+    ).reindex(PROCESS_LIST).fillna({'Count': 0, 'Material_List': 'Tidak ada material', 'Total_Berat': 0}).reset_index()
+
+    fig = px.bar(
+        hover_summary,
+        x='Current Process',
+        y='Count',
+        labels={'Current Process': 'Tahapan Proses', 'Count': 'Jumlah Material'},
+        title="Distribusi Material per Tahapan Proses",
+        text='Count',
+        color_discrete_sequence=['#1f77b4']
+    )
+
+    # Mengatur tampilan tooltip hover agar menampilkan Kode Batch/Material ID
+    fig.update_traces(
+        hovertemplate="<b>Proses:</b> %{x}<br>" +
+                      "<b>Jumlah Material:</b> %{y}<br>" +
+                      "<b>Total Berat:</b> %{customdata[1]:,.2f} gr<br><br>" +
+                      "<b>Daftar Material ID / Batch:</b><br>%{customdata[0]}<extra></extra>",
+        customdata=hover_summary[['Material_List', 'Total_Berat']].values,
+        textposition='outside'
+    )
+
+    fig.update_layout(
+        xaxis_tickangle=-30,
+        height=450,
+        margin=dict(l=20, r=20, t=50, b=50)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
     # 3. Live Monitoring Data Table
     st.markdown("### Live Monitoring Data Table")
