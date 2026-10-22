@@ -6,7 +6,7 @@ import requests
 import time
 import plotly.express as px
 
-st.set_page_config(page_title="Executive Dashboard", layout="wide")
+st.set_page_config(page_title="Production Executive Dashboard", layout="wide")
 
 # Google Sheets Link
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?usp=sharing"
@@ -42,26 +42,34 @@ def load_data():
         # Trim whitespace from column names
         data.columns = [str(col).strip() for col in data.columns]
         
-        # Rename dictionary for consistency
+        # Map exact columns from Google Sheet
         rename_dict = {
-            'Material Id': 'Material ID',
+            'Material ID': 'Material ID',
+            'Material Type': 'Material Type',
             'Weight': 'Weight (gr)',
+            'Purity': 'Purity (%)',
+            '24K Est': 'Est 24K (gr)',
             'Check-In Time': 'Check-In Time',
-            'Last Update Time': 'Last Update Time',
-            'Berat Est 24K': 'Est 24K (gr)',
-            'Est 24K': 'Est 24K (gr)'
+            'Current Process': 'Current Process',
+            'Last Update Time': 'Last Update Time'
         }
         data = data.rename(columns=rename_dict)
         
         if 'Material ID' in data.columns:
             data = data.dropna(subset=['Material ID'])
             
-        # Convert numeric columns
-        if 'Weight (gr)' in data.columns:
-            data['Weight (gr)'] = pd.to_numeric(data['Weight (gr)'], errors='coerce').fillna(0)
-            
-        if 'Est 24K (gr)' in data.columns:
-            data['Est 24K (gr)'] = pd.to_numeric(data['Est 24K (gr)'], errors='coerce').fillna(0)
+        # Clean numeric formatting (e.g. "60,143.32" -> 60143.32)
+        for col in ['Weight (gr)', 'Purity (%)', 'Est 24K (gr)']:
+            if col in data.columns:
+                data[col] = data[col].astype(str).str.replace(',', '').str.replace('%', '').str.strip()
+                data[col] = pd.to_numeric(data[col], errors='coerce').fillna(0)
+            else:
+                data[col] = 0.0
+
+        # Fallback calculation for Est 24K if zero
+        if 'Est 24K (gr)' in data.columns and 'Purity (%)' in data.columns and 'Weight (gr)' in data.columns:
+            mask = (data['Est 24K (gr)'] == 0) & (data['Purity (%)'] > 0)
+            data.loc[mask, 'Est 24K (gr)'] = data.loc[mask, 'Weight (gr)'] * (data.loc[mask, 'Purity (%)'] / 100.0)
             
         return data
     except Exception as e:
@@ -70,6 +78,7 @@ def load_data():
 
 df_leader = load_data()
 
+# Update Judul dan Subtitle
 st.title("📊 Production Executive Dashboard")
 st.markdown("Real-time monitoring summary for Management")
 st.divider()
@@ -77,13 +86,17 @@ st.divider()
 if df_leader.empty or 'Current Process' not in df_leader.columns:
     st.info("⌛ Connecting to Google Sheets...")
 else:
-    # 1. KPI Summary Metrics
-    completed_df = df_leader[df_leader['Current Process'] == PROCESS_LIST[-1]]
-    wip_df = df_leader[df_leader['Current Process'] != PROCESS_LIST[-1]]
+    # Clean string column
+    df_leader['Current Process'] = df_leader['Current Process'].astype(str).str.strip()
     
-    total_weight = df_leader['Weight (gr)'].sum() if 'Weight (gr)' in df_leader.columns else 0
-    completed_weight = completed_df['Weight (gr)'].sum() if 'Weight (gr)' in completed_df.columns else 0
-    total_est_24k = df_leader['Est 24K (gr)'].sum() if 'Est 24K (gr)' in df_leader.columns else 0
+    # 1. KPI Summary Metrics
+    target_completed_process = PROCESS_LIST[-1].strip()
+    completed_df = df_leader[df_leader['Current Process'] == target_completed_process]
+    wip_df = df_leader[df_leader['Current Process'] != target_completed_process]
+    
+    total_weight = df_leader['Weight (gr)'].sum()
+    completed_weight = completed_df['Weight (gr)'].sum()
+    total_est_24k = df_leader['Est 24K (gr)'].sum()
     
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
@@ -106,7 +119,7 @@ else:
     hover_summary = df_leader.groupby('Current Process').agg(
         Count=('Material ID', 'count'),
         Material_List=('Material ID', lambda x: '<br>'.join(x.astype(str))),
-        Total_Berat=('Weight (gr)', 'sum') if 'Weight (gr)' in df_leader.columns else ('Material ID', lambda x: 0)
+        Total_Berat=('Weight (gr)', 'sum')
     ).reindex(PROCESS_LIST).fillna({'Count': 0, 'Material_List': 'No materials', 'Total_Berat': 0}).reset_index()
 
     fig = px.bar(
@@ -139,8 +152,8 @@ else:
     # 3. Live Monitoring Data Table
     st.markdown("### Live Monitoring Data Table")
     def highlight_process(row):
-        val = row['Current Process']
-        if val == PROCESS_LIST[-1]:
+        val = str(row['Current Process']).strip()
+        if val == target_completed_process:
             color = 'background-color: #d4edda; color: #155724;' # Green for completed
         else:
             color = 'background-color: #cce5ff; color: #004085;' # Blue for WIP
