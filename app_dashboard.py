@@ -107,13 +107,13 @@ else:
     with col3:
         st.metric("Completed (Items)", len(completed_df))
     with col4:
-        st.metric("Total Weight (Kg)", f"{total_weight_kg:,.3f}")
+        st.metric("Total Weight (Kg)", f"{total_weight_kg:,.2f}")
     with col5:
-        st.metric("Completed Weight (Kg)", f"{completed_weight_kg:,.3f}")
+        st.metric("Completed Weight (Kg)", f"{completed_weight_kg:,.2f}")
     with col6:
-        st.metric("Total Est 24K (Kg)", f"{total_est_24k_kg:,.3f}")
+        st.metric("Total Est 24K (Kg)", f"{total_est_24k_kg:,.2f}")
     with col7:
-        st.metric("WIP Est 24K (Kg)", f"{wip_est_24k_kg:,.3f}")
+        st.metric("WIP Est 24K (Kg)", f"{wip_est_24k_kg:,.2f}")
 
     st.divider()
     st.subheader("📍 Latest Position of Each Material")
