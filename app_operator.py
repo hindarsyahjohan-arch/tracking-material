@@ -180,7 +180,7 @@ with st.form("form_checklist_operator"):
     col1, col2 = st.columns(2)
     with col1:
         tanggal_shift = st.date_input("Tanggal Work Order:", datetime.now())
-        shift = st.selectbox("Pilih Shift Kerja:", ["Shift 1 (Pagi)", "Shift 2 (Sore)", "Shift 3 (Malam)"])
+        # shift = st.selectbox("Pilih Shift Kerja:", ["Shift 1 (Pagi)", "Shift 2 (Sore)", "Shift 3 (Malam)"])
         nama_operator = st.text_input("Nama Operator:", placeholder="Masukkan nama Anda...")
         
     with col2:
