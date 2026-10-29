@@ -39,10 +39,8 @@ def load_data():
         raw_data = io.StringIO(response.text)
         data = pd.read_csv(raw_data, on_bad_lines='skip')
         
-        # Trim whitespace from column names
         data.columns = [str(col).strip() for col in data.columns]
         
-        # Map exact columns from Google Sheet
         rename_dict = {
             'Material ID': 'Material ID',
             'Material Type': 'Material Type',
@@ -58,7 +56,6 @@ def load_data():
         if 'Material ID' in data.columns:
             data = data.dropna(subset=['Material ID'])
             
-        # Clean numeric formatting (e.g. "60,143.32" -> 60143.32)
         for col in ['Weight (gr)', 'Purity (%)', 'Est 24K (gr)']:
             if col in data.columns:
                 data[col] = data[col].astype(str).str.replace(',', '').str.replace('%', '').str.strip()
@@ -66,7 +63,6 @@ def load_data():
             else:
                 data[col] = 0.0
 
-        # Fallback calculation for Est 24K if zero
         if 'Est 24K (gr)' in data.columns and 'Purity (%)' in data.columns and 'Weight (gr)' in data.columns:
             mask = (data['Est 24K (gr)'] == 0) & (data['Purity (%)'] > 0)
             data.loc[mask, 'Est 24K (gr)'] = data.loc[mask, 'Weight (gr)'] * (data.loc[mask, 'Purity (%)'] / 100.0)
@@ -76,7 +72,6 @@ def load_data():
         st.error(f"⚠️ Synchronization issue detected: {e}")
         return pd.DataFrame()
 
-# Fungsi khusus untuk membaca tab Checklist_Log dari operator
 @st.cache_data(ttl=10)
 def load_checklist_log():
     try:
@@ -101,7 +96,6 @@ st.divider()
 if df_leader.empty or 'Current Process' not in df_leader.columns:
     st.info("⌛ Connecting to Google Sheets...")
 else:
-    # Clean string column
     df_leader['Current Process'] = df_leader['Current Process'].astype(str).str.strip()
     
     # 1. KPI Summary Metrics
@@ -109,7 +103,6 @@ else:
     completed_df = df_leader[df_leader['Current Process'] == target_completed_process]
     wip_df = df_leader[df_leader['Current Process'] != target_completed_process]
     
-    # Convert weights from Grams to Kilograms (1 Kg = 1000 gr)
     total_weight_kg = df_leader['Weight (gr)'].sum() / 1000.0
     completed_weight_kg = completed_df['Weight (gr)'].sum() / 1000.0
     total_est_24k_kg = df_leader['Est 24K (gr)'].sum() / 1000.0
@@ -141,7 +134,6 @@ else:
         Total_Berat=('Weight (gr)', 'sum')
     ).reindex(PROCESS_LIST).fillna({'Count': 0, 'Material_List': 'No materials', 'Total_Berat': 0}).reset_index()
 
-    # Convert chart summary weight to Kg
     hover_summary['Total_Berat_Kg'] = hover_summary['Total_Berat'] / 1000.0
 
     fig = px.bar(
@@ -176,9 +168,9 @@ else:
     def highlight_process(row):
         val = str(row['Current Process']).strip()
         if val == target_completed_process:
-            color = 'background-color: #d4edda; color: #155724;' # Green for completed
+            color = 'background-color: #d4edda; color: #155724;'
         else:
-            color = 'background-color: #cce5ff; color: #004085;' # Blue for WIP
+            color = 'background-color: #cce5ff; color: #004085;'
         styles = [''] * len(row)
         if 'Current Process' in row.index:
             styles[row.index.get_loc('Current Process')] = color
@@ -191,16 +183,16 @@ else:
     # 4. OPERATOR CHECKLIST LOG SECTION
     # ==============================================================================
     st.divider()
-    st.subheader("📋 Log Checklist Operator Terkini (Real-time)")
+    st.subheader("📋 Operator Checklist Real-time Log")
 
     if not df_checklist.empty:
         col_c1, col_c2, col_c3 = st.columns(3)
-        col_c1.metric("Total Checklist Masuk", len(df_checklist))
+        col_c1.metric("Total Checklists Logged", len(df_checklist))
         
         if "Status Akhir" in df_checklist.columns:
             total_warning = df_checklist[df_checklist["Status Akhir"].str.contains("WARNING|REJ", na=False)].shape[0]
-            col_c2.metric("Peringatan / REJ", total_warning, delta_color="inverse")
-        col_c3.metric("Status Sheet Log", "Terhubung Aktif 🟢")
+            col_c2.metric("Warnings / REJ", total_warning, delta_color="inverse")
+        col_c3.metric("Log Sheet Status", "Connected 🟢")
 
         def highlight_checklist_status(val):
             if "REJ" in str(val) or "WARNING" in str(val):
@@ -209,14 +201,13 @@ else:
                 return 'background-color: #d4edda; color: #155724;'
             return ''
 
-        # Ganti applymap menjadi map (karena update Pandas terbaru)
         st.dataframe(
             df_checklist.style.map(highlight_checklist_status, subset=["Status Akhir"] if "Status Akhir" in df_checklist.columns else None),
             use_container_width=True,
             hide_index=True
         )
     else:
-        st.info("Belum ada data log checklist dari operator yang terekam di tab 'Checklist_Log'.")
+        st.info("No operator checklist logs recorded yet in the 'Checklist_Log' tab.")
 
     # 5. Export Features
     st.divider()
