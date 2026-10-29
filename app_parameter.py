@@ -1,136 +1,117 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+import requests
+import time
+import io
 
 st.set_page_config(
-    page_title="Lembar Kerja & Parameter Reaktor - Refining",
+    page_title="Parameter Reaktor & Lembar Kerja",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-st.title("🧪 Lembar Kerja Digital: Refining & Parameter Reaktor 1")
-st.caption("Monitoring Parameter Proses Kimia, Neraca Massa, dan Kontrol Operasional")
+# URL Google Sheets Anda
+URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?gid=802911412#gid=802911412"
+
+@st.cache_data(ttl=10) # Refresh data otomatis tiap 10 detik dari Google Sheets
+def load_parameter_data():
+    try:
+        base_url = URL_ASLI_SHEET.split("/edit")[0]
+        # Membaca tab 'Sheet_Parameter'
+        url_csv = f"{base_url}/gviz/tq?tqx=out:csv&sheet=Sheet_Parameter&t={int(time.time())}"
+        response = requests.get(url_csv, timeout=10)
+        
+        if response.status_code == 200:
+            df = pd.read_csv(io.StringIO(response.text))
+            df.columns = [str(col).strip() for col in df.columns]
+            return df
+        return pd.DataFrame()
+    except Exception as e:
+        return pd.DataFrame()
+
+# Load data dari Google Sheets
+df_param = load_parameter_data()
+
+st.title("🧪 Display Parameter Reaktor & Lembar Kerja")
+st.caption("Monitoring Real-time untuk Tablet Operator Floor")
 st.divider()
 
-# ==============================================================================
-# HEADER DATA BATCH & OPERATOR
-# ==============================================================================
-st.markdown("### 📌 Header Batch Produksi")
-
-col_h1, col_h2, col_h3, col_h4 = st.columns(4)
-with col_h1:
-    st.metric("Kode Produksi", "YT170926 -8")
-with col_h2:
-    st.metric("Tanggal Proses", "2026-09-17")
-with col_h3:
-    st.metric("Operator Utama", "Riski & Mahmud")
-with col_h4:
-    st.metric("Status Reaktor", "Berjalan Normal 🟢")
-
-st.divider()
-
-# ==============================================================================
-# TABS INTERAKTIF UNTUK KATEGORI DATA
-# ==============================================================================
-tab1, tab2, tab3 = st.columns([1, 1, 1])
-
-tab_neraca, tab_reaktor, tab_timeline = st.tabs([
-    "⚖️ Neraca Massa & Material Balance", 
-    "⚙️ Parameter Kimia & Reaktor 1", 
-    "⏱️ Timeline & Log Operasional"
-])
-
-# ------------------------------------------------------------------------------
-# TAB 1: NERACA MASSA
-# ------------------------------------------------------------------------------
-with tab_neraca:
-    st.markdown("#### 📊 Ringkasan Material Balance (Gram)")
+if df_param.empty:
+    st.warning("⚠️ Belum ada data di tab 'Sheet_Parameter' atau tab belum dibuat di Google Sheets.")
+    st.info("Silakan buat tab bernama **Sheet_Parameter** di Google Sheets dan isi data parameter produksi.")
+else:
+    # Ambil data baris paling terakhir (Batch Terbaru)
+    last_row = df_param.iloc[-1]
     
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    col_m1.metric("Weight In (Awal)", "40,544.72 g")
-    col_m2.metric("Purity Alloy", "99.107 %")
-    col_m3.metric("Estimasi 99.99 (Au)", "40,182.64 g")
-    col_m4.metric("Total Loss (Banting)", "0.51 g", delta="-0.001 %", delta_color="inverse")
-
-    st.markdown("---")
-    st.markdown("#### 📋 Detail Tahapan Banting & Refining")
+    # --------------------------------------------------------------------------
+    # 1. HEADER DATA BATCH & OPERATOR
+    # --------------------------------------------------------------------------
+    st.markdown("### 📌 Header Batch Produksi Terkini")
+    col_h1, col_h2, col_h3, col_h4 = st.columns(4)
     
-    df_neraca = pd.DataFrame({
-        "Tahapan Proses": ["Banting / Preparasi", "Refining Process"],
-        "Kode Produksi": ["YT170926 -8", "YT170926 -8"],
-        "Weight In (g)": [40544.72, 40543.32],
-        "Weight Out (g)": [40543.32, 40182.64],
-        "Sample (g)": [0.89, 0.00],
-        "Loss (g)": [0.51, 0.00],
-        "Operator": ["Nico & Riski", "Riski & Mahmud"]
-    })
-    
-    st.dataframe(df_neraca, use_container_width=True, hide_index=True)
+    col_h1.metric("Kode Produksi", str(last_row.get("Kode_Produksi", "-")))
+    col_h2.metric("Tanggal Proses", str(last_row.get("Tanggal", "-")))
+    col_h3.metric("Operator Utama", str(last_row.get("Operator", "-")))
+    col_h4.metric("Status Reaktor", str(last_row.get("Status_Reaktor", "Aktif 🟢")))
 
-# ------------------------------------------------------------------------------
-# TAB 2: PARAMETER REAKTOR 1
-# ------------------------------------------------------------------------------
-with tab_reaktor:
-    st.markdown("#### ⚗️ Parameter Larutan Kimia & Dosing Sodium")
-    
-    col_r1, col_r2, col_r3 = st.columns(3)
-    
-    with col_r1:
-        st.info("**🧪 Penggunaan Asam & Reagen**")
-        st.write("• **HNO3 Tank:** 18.30 Ltr (0.47)")
-        st.write("• **HNO3 Shower:** 6.46 Ltr")
-        st.write("• **HCL (4x Alloy):** 183.24 Ltr")
-        st.write("• **Total Aquaregia:** 208.00 Ltr")
-        st.write("• **Penambahan Water:** 208.00 Ltr")
-        st.write("**Total Volume Cairan:** `416.00 Ltr`")
+    st.divider()
 
-    with col_r2:
-        st.warning("**🔥 Pemanasan & Dosing Sodium**")
-        st.write("• **Total Sodium:** 20.61 Kg (103.07 Ltr)")
-        st.write("• **Dosing Tahap 1:** 0.57 Ltr (Durasi: 45 mnt)")
-        st.write("• **Dosing Tahap 2:** 0.57 Ltr (Durasi: 45 mnt)")
-        st.write("• **Heating Temp:** 70 °C")
-        st.write("• **Heating Time:** 3 Jam")
-        st.write("• **Jeda Mixer:** 60 Menit")
+    # --------------------------------------------------------------------------
+    # 2. TABS DETAIL PARAMETER
+    # --------------------------------------------------------------------------
+    tab_neraca, tab_reaktor, tab_log = st.tabs([
+        "⚖️ Neraca Massa & Material Balance", 
+        "⚙️ Parameter Kimia & Reaktor 1", 
+        "📋 Riwayat Batch Parameter"
+    ])
 
-    with col_r3:
-        st.success("**💨 Kontrol Udara & Siklus Reaktor**")
-        st.write("• **Delay Angin:** 10 Menit")
-        st.write("• **Lama Angin Buka:** 15 Menit")
-        st.write("• **Delay Oxygen:** 10 Menit")
-        st.write("• **Injection / Pause:** 20 Detik / 10 Menit")
-        st.write("• **Cycle Time Total:** 600 Menit (10 Jam)")
-        st.write("• **Lama Proses:** 3 Jam")
+    # --- TAB 1: NERACA MASSA ---
+    with tab_neraca:
+        st.markdown("#### 📊 Material Balance (Banting & Refining)")
+        
+        w_in = float(last_row.get("Weight_In", 0))
+        purity = float(last_row.get("Purity", 0))
+        est_24k = w_in * purity
+        loss = float(last_row.get("Loss", 0))
+        
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("Weight In (Gram)", f"{w_in:,.2f} g")
+        col_m2.metric("Purity Alloy", f"{purity * 100:.3f} %" if purity < 1 else f"{purity:.3f} %")
+        col_m3.metric("Estimasi Au (99.99)", f"{est_24k:,.2f} g")
+        col_m4.metric("Losses (Banting)", f"{loss:.2f} g", delta_color="inverse")
 
-# ------------------------------------------------------------------------------
-# TAB 3: TIMELINE & LOG WAKTU
-# ------------------------------------------------------------------------------
-with tab_timeline:
-    st.markdown("#### ⏳ Log Jadwal & Tahapan Pekerjaan Lapangan")
-    
-    timeline_data = [
-        {"Waktu / Jam": "10:32 - 10:45", "Aktivitas / Langkah SOP": "Check Weight Material Awal", "Penanggung Jawab": "Nico"},
-        {"Waktu / Jam": "11:50 - 13:50", "Aktivitas / Langkah SOP": "Melting Au (Peleburan Alloy)", "Penanggung Jawab": "Riski"},
-        {"Waktu / Jam": "13:54 - 14:17", "Aktivitas / Langkah SOP": "Check Weight Hasil Banting", "Penanggung Jawab": "Riski"},
-        {"Waktu / Jam": "Proses Reaktor", "Aktivitas / Langkah SOP": "Put in RC & Dissolve Au (Pelarutan Aquaregia)", "Penanggung Jawab": "Riski & Mahmud"},
-        {"Waktu / Jam": "Proses Reaktor", "Aktivitas / Langkah SOP": "Cycle R-SR & SR-P (Reduksi & Pengendapan)", "Penanggung Jawab": "Riski & Mahmud"},
-        {"Waktu / Jam": "Tahap Akhir", "Aktivitas / Langkah SOP": "Filtration & Cleaning Au (HCL, HNO3, Hot Water pH 7)", "Penanggung Jawab": "Mahmud"},
-        {"Waktu / Jam": "Tahap Akhir", "Aktivitas / Langkah SOP": "Granulating & Drying (Pengeringan Bubuk)", "Penanggung Jawab": "Mahmud"}
-    ]
-    
-    st.table(timeline_data)
+        st.markdown("---")
+        st.markdown("#### 📝 Data Rincian Timbangan")
+        st.dataframe(df_param[["Kode_Produksi", "Tanggal", "Weight_In", "Weight_Out", "Sample", "Loss", "Operator"]].tail(5), use_container_width=True, hide_index=True)
 
-st.divider()
+    # --- TAB 2: PARAMETER REAKTOR ---
+    with tab_reaktor:
+        st.markdown("#### ⚗️ Parameter Larutan Kimia & Pemanasan")
+        
+        col_r1, col_r2, col_r3 = st.columns(3)
+        
+        with col_r1:
+            st.info("**🧪 Penggunaan Asam & Reagen**")
+            st.write(f"• **HNO3 Tank:** {last_row.get('HNO3_Tank', 0)} Ltr")
+            st.write(f"• **HNO3 Shower:** {last_row.get('HNO3_Shower', 0)} Ltr")
+            st.write(f"• **HCL (4x Alloy):** {last_row.get('HCL', 0)} Ltr")
+            st.write(f"• **Total Aquaregia:** {last_row.get('Total_Aquaregia', 0)} Ltr")
+            st.write(f"• **Penambahan Water:** {last_row.get('Water_Add', 0)} Ltr")
+            st.write(f"**Total Volume Liquid:** `{last_row.get('Total_Liquid', 0)} Ltr`")
 
-# ==============================================================================
-# CATATAN KENDALA & AKSbottom
-# ==============================================================================
-st.markdown("### 📝 Catatan Operasional & Verifikasi QC")
-catatan = st.text_area(
-    "Catatan Khusus Lapangan / Abnormalitas Reaktor:",
-    value="Proses reduksi berjalan lancar. Pembilasan air panas hingga pH 7 tercapai sempurna.",
-    height=100
-)
+        with col_r2:
+            st.warning("**🔥 Pemanasan & Dosing Sodium**")
+            st.write(f"• **Sodium Total:** {last_row.get('Sodium_Kg', 0)} Kg ({last_row.get('Sodium_Ltr', 0)} Ltr)")
+            st.write(f"• **Heating Temp:** {last_row.get('Heating_Temp', 0)} °C")
+            st.write(f"• **Heating Time:** {last_row.get('Heating_Time', 0)} Jam")
 
-if st.button("💾 Simpan & Perbarui Parameter", use_container_width=True):
-    st.success("✅ Data Lembar Kerja & Parameter Reaktor berhasil diperbarui!")
+        with col_r3:
+            st.success("**💨 Catatan Operasional**")
+            st.write(f"**Keterangan Lapangan:**\n\n{last_row.get('Catatan', 'Tidak ada catatan khusus.')}")
+
+    # --- TAB 3: RIWAYAT BATCH ---
+    with tab_log:
+        st.markdown("#### 📜 Tabel Semua Data Parameter")
+        st.dataframe(df_param, use_container_width=True, hide_index=True)
+
+st.caption("🔄 Data otomatis terhubung dengan Google Sheets tab 'Sheet_Parameter'.")
