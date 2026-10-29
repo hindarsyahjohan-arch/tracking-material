@@ -194,7 +194,6 @@ st.subheader("📋 Log Checklist Operator - Filter Emas (Real-time)")
 @st.cache_data(ttl=15)
 def load_checklist_operator_data():
     try:
-        # Mengambil sheet 'Checklist_Log' secara realtime
         base_url = URL_ASLI_SHEET.split("/edit")[0]
         url_checklist = f"{base_url}/gviz/tq?tqx=out:csv&sheet=Checklist_Log&t={int(time.time())}"
         df_log = pd.read_csv(url_checklist)
@@ -205,7 +204,6 @@ def load_checklist_operator_data():
 df_checklist_log = load_checklist_operator_data()
 
 if not df_checklist_log.empty:
-    # Mewarnai status jika terdapat REJ / Abnormal
     def highlight_rej(val):
         if "REJ" in str(val) or "WARNING" in str(val):
             return 'background-color: #f8d7da; color: #721c24; font-weight: bold;'
