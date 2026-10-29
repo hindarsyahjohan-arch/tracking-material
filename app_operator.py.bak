@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import requests
+import json
 
 st.set_page_config(
     page_title="Operator Checklist - Filter Emas", 
@@ -9,22 +10,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ==============================================================================
-# CONFIGURASI GOOGLE SHEETS
-# ==============================================================================
-URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?gid=802911412#gid=802911412"
+# Tempelkan Web App URL dari Google Apps Script Langkah 1 di sini
+WEBHOOK_URL = https://script.google.com/macros/s/AKfycbzFdETw5CLY6NvqzeH8U1x8bTnWCaGOQpzGY8idhVJNXLoj4egNc9wvC7vpQzOBloEr/exec
 
 st.title("🛠️ Form Checklist Operator Produksi")
 st.subheader("Proses: Filter Emas & Reduksi Kimia")
-st.caption("Aplikasi Input Lapangan (Tablet Operator Floor)")
 
-# Peringatan K3 sesuai SOP
 st.warning("""
-⚠️ **PERINGATAN K3 (SANGAT IMPORTANT):**  
-Gas **NOX** sangat beracun dan korosif! Pastikan **masker respirator terpasang rapat**, **bukaan damper tepat di Posisi 3**, dan **sistem aspirator hisap berfungsi penuh** sebelum proses reduksi dimulai.
+⚠️ **PERINGATAN K3:**  
+Gas **NOX** sangat beracun dan korosif! Pastikan **masker respirator terpasang rapat**, **bukaan damper tepat di Posisi 3**, dan **sistem aspirator hisap berfungsi penuh**.
 """)
-
-st.divider()
 
 CHECKLIST_ITEMS = [
     "1. Memeriksa kecukupan volume & stok bahan pereduksi SMB (200 grm/ltr)",
@@ -42,9 +37,6 @@ CHECKLIST_ITEMS = [
     "13. Menurunkan & membilas bubuk coklat dengan air demin menggunakan pipa/tongkat"
 ]
 
-# ==============================================================================
-# FORM INPUT OPERATOR
-# ==============================================================================
 with st.form("form_checklist_operator"):
     st.markdown("### 📋 1. Header Data Operasional")
     
@@ -60,8 +52,7 @@ with st.form("form_checklist_operator"):
         verifikator_qc = st.text_input("Nama Verifikator / QC Lapangan:", placeholder="Nama QC Shift...")
 
     st.divider()
-    st.markdown("### ⚙️ 2. Butir Pemeriksaan / Langkah SOP")
-    st.info("Pilih status kelayakan **[ OK ]** jika sesuai SOP, atau **[ REJ / Reject ]** jika terdapat kendala/abnormalitas.")
+    st.markdown("### ⚙️ 2. Butir Pemeriksaan SOP")
 
     checklist_results = {}
     for idx, item_text in enumerate(CHECKLIST_ITEMS, 1):
@@ -78,10 +69,9 @@ with st.form("form_checklist_operator"):
             )
         st.markdown("---")
 
-    st.markdown("### 📝 3. Catatan & Status Akhir Operator")
     catatan_kendala = st.text_area(
         "Catatan Kendala / Keterangan Tambahan Lapangan:", 
-        placeholder="Tuliskan di sini jika ada penambahan sodium ekstra, tekanan pompa abnormal, atau penyimpangan lainnya..."
+        placeholder="Tuliskan jika ada kendala..."
     )
 
     submit_button = st.form_submit_button("📤 Submit & Kirim Checklist ke Pusat", use_container_width=True)
@@ -94,14 +84,25 @@ with st.form("form_checklist_operator"):
             status_akhir = "NORMAL / PASSED" if total_rej == 0 else f"WARNING ({total_rej} Item REJ)"
             timestamp_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            st.success("🎉 **Data Checklist Operator Berhasil Direkam!**")
-            st.json({
-                "Timestamp": timestamp_now,
-                "Tanggal": str(tanggal_shift),
-                "Shift": shift,
-                "Batch": nomor_batch,
-                "Operator": nama_operator,
-                "Status Akhir": status_akhir,
-                "Hasil Checklist": checklist_results
-            })
-            st.balloons()
+            payload = {
+                "timestamp": timestamp_now,
+                "tanggal": str(tanggal_shift),
+                "shift": shift,
+                "batch": nomor_batch,
+                "operator": nama_operator,
+                "kode_mesin": kode_mesin,
+                "qc_verifikator": verifikator_qc,
+                "status_akhir": status_akhir,
+                "catatan": catatan_kendala
+            }
+
+            try:
+                # Mengirim data ke Google Sheets via Apps Script Web App
+                response = requests.post(WEBHOOK_URL, json=payload)
+                if response.status_code == 200 and response.json().get("result") == "success":
+                    st.success("🎉 **Data Checklist Operator Berhasil Disimpan ke Google Sheets!**")
+                    st.balloons()
+                else:
+                    st.error(f"❌ Gagal menyimpan ke Google Sheets. Respon server: {response.text}")
+            except Exception as e:
+                st.error(f"❌ Terjadi kesalahan koneksi: {e}")

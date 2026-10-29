@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # Tempelkan Web App URL dari Google Apps Script Langkah 1 di sini
-WEBHOOK_URL = https://script.google.com/macros/s/AKfycbzFdETw5CLY6NvqzeH8U1x8bTnWCaGOQpzGY8idhVJNXLoj4egNc9wvC7vpQzOBloEr/exec
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzFdETw5CLY6NvqzeH8U1x8bTnWCaGOQpzGY8idhVJNXLoj4egNc9wvC7vpQzOBloEr/exec"
 
 st.title("🛠️ Form Checklist Operator Produksi")
 st.subheader("Proses: Filter Emas & Reduksi Kimia")
