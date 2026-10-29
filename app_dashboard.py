@@ -209,8 +209,9 @@ else:
                 return 'background-color: #d4edda; color: #155724;'
             return ''
 
+        # Ganti applymap menjadi map (karena update Pandas terbaru)
         st.dataframe(
-            df_checklist.style.applymap(highlight_checklist_status, subset=["Status Akhir"] if "Status Akhir" in df_checklist.columns else None),
+            df_checklist.style.map(highlight_checklist_status, subset=["Status Akhir"] if "Status Akhir" in df_checklist.columns else None),
             use_container_width=True,
             hide_index=True
         )
