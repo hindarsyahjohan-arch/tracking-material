@@ -69,14 +69,33 @@ else:
     with tab_neraca:
         st.markdown("#### 📊 Material Balance (Banting & Refining)")
         
-        w_in = float(last_row.get("Weight_In", 0))
-        purity = float(last_row.get("Purity", 0))
-        est_24k = w_in * purity
-        loss = float(last_row.get("Loss", 0))
+        # Fungsi pembersih data numerik agar aman dari error string/persen
+        def clean_float(val):
+            try:
+                if pd.isna(val):
+                    return 0.0
+                # Hapus tanda persen, koma, spasi, lalu ubah ke float
+                cleaned = str(val).replace('%', '').replace(',', '').strip()
+                return float(cleaned)
+            except:
+                return 0.0
+
+        w_in = clean_float(last_row.get("Weight_In", 0))
+        raw_purity = str(last_row.get("Purity", 0)).replace('%', '').strip()
+        purity = clean_float(raw_purity)
+        
+        # Jika purity ditulis dalam bentuk persen desimal atau puluhan (misal: 99.107 atau 0.99107)
+        if purity > 1:
+            purity_decimal = purity / 100.0
+        else:
+            purity_decimal = purity
+
+        est_24k = w_in * purity_decimal
+        loss = clean_float(last_row.get("Loss", 0))
         
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         col_m1.metric("Weight In (Gram)", f"{w_in:,.2f} g")
-        col_m2.metric("Purity Alloy", f"{purity * 100:.3f} %" if purity < 1 else f"{purity:.3f} %")
+        col_m2.metric("Purity Alloy", f"{purity:.3f}%" if purity > 1 else f"{purity * 100:.3f}%")
         col_m3.metric("Estimasi Au (99.99)", f"{est_24k:,.2f} g")
         col_m4.metric("Losses (Banting)", f"{loss:.2f} g", delta_color="inverse")
 
