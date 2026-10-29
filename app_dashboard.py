@@ -76,7 +76,23 @@ def load_data():
         st.error(f"⚠️ Synchronization issue detected: {e}")
         return pd.DataFrame()
 
+# Fungsi khusus untuk membaca tab Checklist_Log dari operator
+@st.cache_data(ttl=10)
+def load_checklist_log():
+    try:
+        if "/edit" in URL_ASLI_SHEET:
+            base_url = URL_ASLI_SHEET.split("/edit")[0]
+        else:
+            base_url = URL_ASLI_SHEET
+            
+        url_csv = f"{base_url}/gviz/tq?tqx=out:csv&sheet=Checklist_Log&t={int(time.time())}"
+        df_log = pd.read_csv(url_csv)
+        return df_log
+    except Exception:
+        return pd.DataFrame()
+
 df_leader = load_data()
+df_checklist = load_checklist_log()
 
 st.title("📊 Production Executive Dashboard")
 st.markdown("Real-time monitoring summary for Management")
@@ -171,7 +187,37 @@ else:
     styled_df = df_leader.style.apply(highlight_process, axis=1)
     st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
-    # 4. Export Features
+    # ==============================================================================
+    # 4. OPERATOR CHECKLIST LOG SECTION
+    # ==============================================================================
+    st.divider()
+    st.subheader("📋 Log Checklist Operator Terkini (Real-time)")
+
+    if not df_checklist.empty:
+        col_c1, col_c2, col_c3 = st.columns(3)
+        col_c1.metric("Total Checklist Masuk", len(df_checklist))
+        
+        if "Status Akhir" in df_checklist.columns:
+            total_warning = df_checklist[df_checklist["Status Akhir"].str.contains("WARNING|REJ", na=False)].shape[0]
+            col_c2.metric("Peringatan / REJ", total_warning, delta_color="inverse")
+        col_c3.metric("Status Sheet Log", "Terhubung Aktif 🟢")
+
+        def highlight_checklist_status(val):
+            if "REJ" in str(val) or "WARNING" in str(val):
+                return 'background-color: #f8d7da; color: #721c24; font-weight: bold;'
+            elif "NORMAL" in str(val) or "PASSED" in str(val):
+                return 'background-color: #d4edda; color: #155724;'
+            return ''
+
+        st.dataframe(
+            df_checklist.style.applymap(highlight_checklist_status, subset=["Status Akhir"] if "Status Akhir" in df_checklist.columns else None),
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("Belum ada data log checklist dari operator yang terekam di tab 'Checklist_Log'.")
+
+    # 5. Export Features
     st.divider()
     st.markdown("### 📥 Download Production Reports")
     col_dl1, col_dl2, _ = st.columns(3)
@@ -183,7 +229,8 @@ else:
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
         df_leader.to_excel(writer, index=False, sheet_name='Material Data')
+        if not df_checklist.empty:
+            df_checklist.to_excel(writer, index=False, sheet_name='Checklist Log')
     excel_data = buffer.getvalue()
     with col_dl2:
         st.download_button(label="🟢 Download Data (Excel)", data=excel_data, file_name=f"executive_report_{datetime.now().strftime('%Y%m%d')}.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', use_container_width=True)
-  
