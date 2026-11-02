@@ -119,9 +119,8 @@ else:
     stages = [
         "1. Material Receiving", 
         "2. Purity Testing", 
-        "3. Refining Process", 
-        "4. Reduction & Cleaning", 
-        "5. Packaging & Ready"
+        "3. Refining Process",         
+        "4. Packaging & Ready"
     ]
     
     status_str = str(row_data.get('Current Status', 'Refining Process')).lower()
