@@ -17,7 +17,6 @@ URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4w
 def load_customer_data():
     try:
         base_url = URL_ASLI_SHEET.split("/edit")[0]
-        # Mengambil data dari tab 'Customer_Tracking'
         url_csv = f"{base_url}/gviz/tq?tqx=out:csv&sheet=Customer_Tracking&t={int(time.time())}"
         response = requests.get(url_csv, timeout=10)
         
@@ -31,7 +30,6 @@ def load_customer_data():
 
 df_cust = load_customer_data()
 
-# Inisialisasi Session State untuk Login
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "batch_code" not in st.session_state:
@@ -42,7 +40,7 @@ st.caption("Secure tracking portal for your gold refining progress, purity, and 
 st.divider()
 
 # ==============================================================================
-# HALAMAN LOGIN (JIKA BELUM LOGIN)
+# HALAMAN LOGIN
 # ==============================================================================
 if not st.session_state.authenticated:
     st.markdown("### 🔐 Customer Authentication Required")
@@ -55,51 +53,46 @@ if not st.session_state.authenticated:
 
         if login_btn:
             if df_cust.empty:
-                # Mode Simulasi / Fallback jika Google Sheet belum diisi
-                if input_batch == "YT170926-8" and input_pin == "1234":
-                    st.session_state.authenticated = True
-                    st.session_state.batch_code = input_batch
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid Batch Code or PIN. (Demo mode: use Batch: YT170926-8, PIN: 1234)")
+                st.error("❌ Unable to connect to the 'Customer_Tracking' sheet or sheet is empty.")
             else:
-                # Pencocokan data dengan Google Sheets tab 'Customer_Tracking'
-                # Kolom di Sheet diasumsikan: 'Batch Code' dan 'PIN'
-                matched = df_cust[
-                    (df_cust['Batch Code'].astype(str).str.strip() == input_batch.strip()) & 
-                    (df_cust['PIN'].astype(str).str.strip() == input_pin.strip())
-                ]
-                
-                if not matched.empty:
-                    st.session_state.authenticated = True
-                    st.session_state.batch_code = input_batch
-                    st.rerun()
+                if 'Batch Code' not in df_cust.columns or 'PIN' not in df_cust.columns:
+                    st.error(f"❌ Columns 'Batch Code' or 'PIN' not found in Google Sheets! Available columns: {list(df_cust.columns)}")
                 else:
-                    st.error("❌ Invalid Batch Code or PIN. Please check your credentials.")
+                    matched = df_cust[
+                        (df_cust['Batch Code'].astype(str).str.strip() == input_batch.strip()) & 
+                        (df_cust['PIN'].astype(str).str.strip() == input_pin.strip())
+                    ]
+                    
+                    if not matched.empty:
+                        st.session_state.authenticated = True
+                        st.session_state.batch_code = input_batch
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid Batch Code or PIN. Please check your credentials.")
 
 # ==============================================================================
-# HALAMAN UTAMA DASHBOARD CUSTOMER (SETELAH LOGIN BERHASIL)
+# HALAMAN UTAMA DASHBOARD CUSTOMER
 # ==============================================================================
 else:
     active_batch = st.session_state.batch_code
     
-    # Ambil data spesifik milik customer yang login
-    if not df_cust.empty:
-        row_data = df_cust[df_cust['Batch Code'].astype(str).str.strip() == active_batch.strip()].iloc[-1]
-    else:
-        # Data Mockup / Simulasi Default
-        row_data = {
-            "Customer Name": "PT. Sumber Mulia Logam",
-            "Total Weight": 10.00,
-            "Purity": 99.107,
-            "DP Weight": 5.00,
-            "Remaining Weight": 5.00,
-            "Est Date": "2026-11-05",
-            "Current Status": "Refining Process",
-            "Notes": "Initial DP of 5 Kg received. The remaining 5 Kg will be settled upon final packaging and purity verification."
-        }
+    # Ambil data baris customer
+    row_data = {}
+    if not df_cust.empty and 'Batch Code' in df_cust.columns:
+        row_matched = df_cust[df_cust['Batch Code'].astype(str).str.strip() == active_batch.strip()]
+        if not row_matched.empty:
+            row_data = row_matched.iloc[-1].to_dict()
 
-    # Header sambutan & tombol Logout
+    # Fungsi aman untuk mengubah nilai ke float
+    def safe_float(val, default=0.0):
+        try:
+            if pd.isna(val):
+                return default
+            cleaned = str(val).replace('%', '').replace(',', '').strip()
+            return float(cleaned)
+        except:
+            return default
+
     col_h1, col_h2 = st.columns([4, 1])
     with col_h1:
         st.markdown(f"### Welcome, **{row_data.get('Customer Name', 'Valued Customer')}**")
@@ -112,18 +105,17 @@ else:
 
     st.divider()
 
-    # 1. Metric Cards (Berat, Purity, DP, Sisa, Estimasi)
+    # Metric Cards dengan fungsi safe_float
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total Received Weight", f"{float(row_data.get('Total Weight', 0)):,.2f} Kg")
-    c2.metric("Purity Level", f"{float(row_data.get('Purity', 0)):,.3f} %", "Verified 🟢")
-    c3.metric("DP Process Set", f"{float(row_data.get('DP Weight', 0)):,.2f} Kg", "Completed")
-    c4.metric("Remaining Balance Due", f"{float(row_data.get('Remaining Weight', 0)):,.2f} Kg", "Pending Final")
+    c1.metric("Total Received Weight", f"{safe_float(row_data.get('Total Weight', 0)):,.2f} Kg")
+    c2.metric("Purity Level", f"{safe_float(row_data.get('Purity', 0)):,.3f} %", "Verified 🟢")
+    c3.metric("DP Process Set", f"{safe_float(row_data.get('DP Weight', 0)):,.2f} Kg", "Completed")
+    c4.metric("Remaining Balance Due", f"{safe_float(row_data.get('Remaining Weight', 0)):,.2f} Kg", "Pending Final")
     c5.metric("Est. Completion", str(row_data.get('Est Date', '-')))
 
     st.markdown("---")
     st.markdown("### 📍 Live Process Stage Tracker")
 
-    # Visual Progress Stages
     stages = [
         "1. Material Receiving", 
         "2. Purity Testing", 
@@ -134,8 +126,7 @@ else:
     
     status_str = str(row_data.get('Current Status', 'Refining Process')).lower()
     
-    # Menentukan posisi tahap aktif berdasarkan status di database
-    active_idx = 2 # Default di Refining
+    active_idx = 2
     if "receiv" in status_str: active_idx = 0
     elif "purity" in status_str or "test" in status_str: active_idx = 1
     elif "refin" in status_str: active_idx = 2
