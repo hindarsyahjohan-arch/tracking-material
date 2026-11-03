@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS untuk menghilangkan ruang kosong (padding) atas/bawah agar pas di satu layar
+# Custom CSS to remove padding so it fits in a single screen without scrolling
 st.markdown("""
     <style>
         .block-container {
@@ -25,25 +25,24 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Google Sheet Link Utama
+# Main Google Sheet Link
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?gid=577877479#gid=577877479"
 
-# 2. HEADER KONTROL KIOSK & ROTASI OTOMATIS
-st.markdown("### 🏭 Lantai Produksi - Kiosk Multi-Display Mode")
+# 2. KIOSK CONTROL HEADER & AUTO-ROTATION
+st.markdown("### 🏭 Production Floor - Kiosk Multi-Display Mode")
 
 col_ctrl1, col_ctrl2, col_ctrl3 = st.columns([2, 2, 6])
 
 with col_ctrl1:
     mode_tampilan = st.selectbox(
-        "Pilih Mode Tampilan:",
-        ["🔄 Auto Rotate (Bergantian Otomatis)", "📊 1. Executive Dashboard", "🧪 2. Reactor Parameters", "🛠️ 3. Operator Checklist"]
+        "Select Display Mode:",
+        ["🔄 Auto Rotate", "📊 1. Executive Dashboard", "🧪 2. Reactor Parameters", "🛠️ 3. Operator Checklist"]
     )
 
 with col_ctrl2:
-    # Waktu jeda rotasi otomatis (dalam detik)
-    waktu_rotasi = st.slider("Durasi Ganti Halaman (Detik):", min_value=5, max_value=30, value=15)
+    waktu_rotasi = st.slider("Rotation Interval (Seconds):", min_value=5, max_value=30, value=15)
 
-# Logika Auto Rotate menggunakan Session State & Auto-run
+# Session state logic for auto-rotation
 if "last_switch" not in st.session_state:
     st.session_state.last_switch = time.time()
 if "page_index" not in st.session_state:
@@ -55,7 +54,7 @@ pages_list = [
     "🛠️ 3. Operator Checklist"
 ]
 
-if mode_tampilan == "🔄 Auto Rotate (Bergantian Otomatis)":
+if mode_tampilan == "🔄 Auto Rotate":
     current_time = time.time()
     if current_time - st.session_state.last_switch > waktu_rotasi:
         st.session_state.page_index = (st.session_state.page_index + 1) % len(pages_list)
@@ -63,17 +62,17 @@ if mode_tampilan == "🔄 Auto Rotate (Bergantian Otomatis)":
         st.rerun()
     
     selected_page = pages_list[st.session_state.page_index]
-    col_ctrl3.markdown(f"👉 **Sedang Menampilkan Otomatis:** `{selected_page}` (Berganti tiap {waktu_rotasi} detik)")
+    col_ctrl3.markdown(f"👉 **Currently Auto-Displaying:** `{selected_page}` (Switches every {waktu_rotasi}s)")
 else:
     selected_page = mode_tampilan
 
 st.divider()
 
 # ==============================================================================
-# HALAMAN 1: EXECUTIVE DASHBOARD
+# PAGE 1: EXECUTIVE DASHBOARD
 # ==============================================================================
 if "Dashboard" in selected_page:
-    st.markdown("#### 📊 Production Executive Summary (Live)")
+    st.markdown("#### 📊 Production Executive Summary (Live - Last 5 Batches)")
     
     @st.cache_data(ttl=10)
     def load_dash_data():
@@ -89,22 +88,22 @@ if "Dashboard" in selected_page:
     if not df_dash.empty:
         df_dash.columns = [str(c).strip() for c in df_dash.columns]
         
-        # Pengecekan aman untuk kolom numerik agar tidak terjadi IndexError
         numeric_df = df_dash.select_dtypes(include='number')
         total_berat = numeric_df.sum().iloc[0] if not numeric_df.empty and len(numeric_df.columns) > 0 else 0.0
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Items", len(df_dash))
-        c2.metric("Total Berat (Kg)", f"{total_berat:,.2f}")
-        c3.metric("Status Kiosk", "Online 🟢")
-        c4.metric("Refresh Rate", "10 Detik")
+        c2.metric("Total Weight (Kg)", f"{total_berat:,.2f}")
+        c3.metric("Kiosk Status", "Online 🟢")
+        c4.metric("Refresh Rate", "10s")
         
-        st.dataframe(df_dash.head(5), use_container_width=True, hide_index=True)
+        # Display the last 5 batches
+        st.dataframe(df_dash.tail(5), use_container_width=True, hide_index=True)
     else:
-        st.warning("Memuat data dashboard...")
+        st.warning("Loading dashboard data...")
 
 # ==============================================================================
-# HALAMAN 2: REACTOR PARAMETERS
+# PAGE 2: REACTOR PARAMETERS
 # ==============================================================================
 elif "Parameters" in selected_page:
     st.markdown("#### 🧪 Reactor Parameters & Work Sheet Display")
@@ -125,33 +124,33 @@ elif "Parameters" in selected_page:
     if not df_param.empty:
         last_row = df_param.iloc[-1]
         p1, p2, p3, p4 = st.columns(4)
-        p1.metric("Kode Produksi", str(last_row.get("Kode Produksi", "-")))
+        p1.metric("Production Code", str(last_row.get("Kode Produksi", "-")))
         p2.metric("Weight In (g)", str(last_row.get("Weight In Gram", "-")))
         p3.metric("Purity", str(last_row.get("Purity", "-")))
         p4.metric("Heating Temp", f"{last_row.get('Heating Temp', '-')} °C")
         
-        st.info(f"**Catatan Lapangan Terkini:** {last_row.get('Notes', 'Tidak ada catatan.')}")
+        st.info(f"**Latest Floor Remarks:** {last_row.get('Notes', 'No special notes.')}")
     else:
-        st.warning("Memuat data parameter reaktor...")
+        st.warning("Loading reactor parameter data...")
 
 # ==============================================================================
-# HALAMAN 3: OPERATOR CHECKLIST FORM (COMPACT)
+# PAGE 3: OPERATOR CHECKLIST FORM (COMPACT)
 # ==============================================================================
 elif "Checklist" in selected_page:
-    st.markdown("#### 🛠️ Form Checklist Operator Ringkas")
+    st.markdown("#### 🛠️ Operator Checklist Form (Compact Mode)")
     
     pilihan_proses = st.selectbox(
-        "Pilih Tahapan Proses:",
-        ["1. Proses Banting (Melting)", "2. Proses Aquaregia", "3. Filter Emas & Reduksi"]
+        "Select Process Stage:",
+        ["1. Melting (Banting)", "2. Aquaregia Process", "3. Filter & Reduction"]
     )
     
     col_f1, col_f2, col_f3 = st.columns(3)
-    op_name = col_f1.text_input("Nama Operator:", placeholder="Nama...")
-    batch_num = col_f2.text_input("Nomor Batch:", placeholder="Batch...")
+    op_name = col_f1.text_input("Operator Name:", placeholder="Name...")
+    batch_num = col_f2.text_input("Batch Number:", placeholder="Batch...")
     shift = col_f3.selectbox("Shift:", ["Shift 1", "Shift 2", "Shift 3"])
     
-    st.success("Form siap digunakan di tablet operator dalam mode ringkas satu layar.")
+    st.success("Form ready for floor tablet operation in compact view.")
 
-# Auto-refresh halaman setiap 5 detik agar siklus rotasi berjalan mulus
+# Auto-refresh cycle every 5 seconds for smooth rotation
 time.sleep(5)
-st.rerun()
+st.rerurn()
