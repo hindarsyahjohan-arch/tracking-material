@@ -88,13 +88,17 @@ if "Dashboard" in selected_page:
     df_dash = load_dash_data()
     if not df_dash.empty:
         df_dash.columns = [str(c).strip() for c in df_dash.columns]
+        
+        # Pengecekan aman untuk kolom numerik agar tidak terjadi IndexError
+        numeric_df = df_dash.select_dtypes(include='number')
+        total_berat = numeric_df.sum().iloc[0] if not numeric_df.empty and len(numeric_df.columns) > 0 else 0.0
+
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Items", len(df_dash))
-        c2.metric("Total Berat (Kg)", f"{df_dash.select_dtypes(include='number').sum().iloc[0]:,.2f}")
+        c2.metric("Total Berat (Kg)", f"{total_berat:,.2f}")
         c3.metric("Status Kiosk", "Online 🟢")
         c4.metric("Refresh Rate", "10 Detik")
         
-        # Tampilkan ringkasan tabel yang pas di layar tanpa scroll panjang
         st.dataframe(df_dash.head(5), use_container_width=True, hide_index=True)
     else:
         st.warning("Memuat data dashboard...")
