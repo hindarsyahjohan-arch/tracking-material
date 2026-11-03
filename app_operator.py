@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # Webhook URL for Google Apps Script (Appends data to 'Checklist_Log' tab)
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzFdETw5CLY6NvqzeH8U1x8bTnWCaGOQpzGY8idhVJNXLoj4egNc9wvC7vpQzOBloEr/exec"
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzh0uj20f4IXWz3dun7LrLSmOUMsaWIMCY7tJqvq0wg8F15TjPR3bvOt_O-QoX94WkZ/exec"
 
 st.title("🛠️ Operator Daily Checklist Form")
 st.caption("Connected to Google Sheets tab: Checklist_Log (gid=802911412)")
