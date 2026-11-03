@@ -153,4 +153,4 @@ elif "Checklist" in selected_page:
 
 # Auto-refresh cycle every 5 seconds for smooth rotation
 time.sleep(5)
-st.rerurn()
+st.rerun()
