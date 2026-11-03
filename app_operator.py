@@ -180,16 +180,12 @@ with st.form("form_checklist_operator"):
     col1, col2 = st.columns(2)
     with col1:
         tanggal_shift = st.date_input("Tanggal Work Order:", datetime.now())
-        
-        # PASTIKAN VARIABEL SHIFT INI ADA:
-        shift = st.selectbox("Pilih Shift Kerja:", ["Shift 1 (Pagi)", "Shift 2 (Sore)", "Shift 3 (Malam)"])
-        
         nama_operator = st.text_input("Nama Operator:", placeholder="Masukkan nama Anda...")
         
     with col2:
         nomor_batch = st.text_input("Nomor Batch Material:", placeholder="Contoh: BATCH-2026-001")
         kode_mesin = st.text_input("Kode Mesin / Stasiun:", placeholder="Contoh: MCN-01 / Reaktor 1")
-        verifikator_qc = st.text_input("Nama Verifikator / QC Lapangan:", placeholder="Nama QC Shift...")
+        verifikator_qc = st.text_input("Nama Verifikator / QC Lapangan:", placeholder="Nama QC...")
 
     st.divider()
     st.markdown("### ⚙️ Butir Pemeriksaan SOP")
@@ -227,7 +223,6 @@ with st.form("form_checklist_operator"):
             payload = {
                 "timestamp": timestamp_now,
                 "tanggal": str(tanggal_shift),
-                "shift": shift,
                 "proses": pilihan_proses,  # Mengirimkan informasi jenis tahapan proses
                 "batch": nomor_batch,
                 "operator": nama_operator,
