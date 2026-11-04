@@ -5,12 +5,8 @@ import io
 import requests
 import time
 import plotly.express as px
-from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(page_title="Production Executive Dashboard", layout="wide")
-
-# Mengaktifkan Auto-Refresh setiap 10 detik (10000 milidetik)
-count = st_autorefresh(interval=10000, limit=None, key="dashboard_autorefresh")
 
 # Google Sheets Link
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?usp=sharing"
@@ -271,3 +267,7 @@ else:
     excel_data = buffer.getvalue()
     with col_dl2:
         st.download_button(label="🟢 Download Data (Excel)", data=excel_data, file_name=f"executive_report_{datetime.now().strftime('%Y%m%d')}.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', use_container_width=True)
+
+# Auto-refresh loop native (10 detik) tanpa butuh library eksternal
+time.sleep(10)
+st.rerun()
