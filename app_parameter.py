@@ -123,8 +123,8 @@ else:
                 st.metric("Cooling Nitrogen (bar)", get_val(last_row, ["Cooling Nitrogen (bar )", "Cooling N2"], "10"))
 
     # --------------------------------------------------------------------------
-    Info KONDISI 2: TAMPILAN PROSES REFINING (REACTOR 1)
-    --------------------------------------------------------------------------
+    # KONDISI 2: TAMPILAN PROSES REFINING (REACTOR 1)
+    # --------------------------------------------------------------------------
     else:
         st.markdown("### ⚗️ Refining Process Work Sheet (Reactor 1)")
         
