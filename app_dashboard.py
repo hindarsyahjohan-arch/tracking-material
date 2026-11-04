@@ -22,10 +22,10 @@ PROCESS_LIST = [
     "8. Cast Bar Making"
 ]
 
-# Konfigurasi Kapasitas Reaktor Chemical Aquaregia (Ralat: 100 Kg per reaktor, 2 unit)
-CAPACITY_PER_REACTOR_KG = 100.0  # 100 Kg per Reaktor
+# Konfigurasi Kapasitas Reaktor Chemical Aquaregia (100 Kg per reaktor, 2 unit = 200 Kg)
+CAPACITY_PER_REACTOR_KG = 100.0  
 TOTAL_REACTORS = 2
-TOTAL_MAX_CAPACITY_KG = CAPACITY_PER_REACTOR_KG * TOTAL_REACTORS  # Total 200 Kg
+TOTAL_MAX_CAPACITY_KG = CAPACITY_PER_REACTOR_KG * TOTAL_REACTORS  
 
 def load_data():
     try:
@@ -135,9 +135,17 @@ else:
     st.divider()
     st.subheader("🧪 Aquaregia Reactor Capacity Status (2 Units × 100 Kg)")
     
-    # Filter material yang sedang berada di proses Aquaregia
-    aquaregia_df = df_leader[df_leader['Current Process'].str.contains("Aquaregia Process", case=False, na=False)]
-    current_aquaregia_load_kg = aquaregia_df['Weight (gr)'].sum() / 1000.0
+    # Material yang menduduki reaktor (Mulai dari Material Receiving sampai Reduction Aquaregia)
+    # Kapasitas akan kosong/reset kembali setelah masuk tahap "5. Au Sponge Cleaning" ke atas.
+    stages_occupying_reactor = [
+        "1. Material Receiving",
+        "2. Gold Leaf Making",
+        "3. Aquaregia Process",
+        "4. Reduction Aquaregia"
+    ]
+    
+    reactor_load_df = df_leader[df_leader['Current Process'].isin(stages_occupying_reactor)]
+    current_aquaregia_load_kg = reactor_load_df['Weight (gr)'].sum() / 1000.0
     remaining_capacity_kg = max(0.0, TOTAL_MAX_CAPACITY_KG - current_aquaregia_load_kg)
     load_percentage = min(1.0, current_aquaregia_load_kg / TOTAL_MAX_CAPACITY_KG)
 
@@ -145,13 +153,13 @@ else:
     with rc1:
         st.metric("Total Installed Capacity", f"{TOTAL_MAX_CAPACITY_KG:,.1f} Kg", f"{TOTAL_REACTORS} Reactors (100Kg/unit)")
     with rc2:
-        st.metric("Current In-Use Weight", f"{current_aquaregia_load_kg:,.2f} Kg", f"{len(aquaregia_df)} Batches/Items")
+        st.metric("Current In-Use Weight", f"{current_aquaregia_load_kg:,.2f} Kg", f"{len(reactor_load_df)} Batches/Items in Reactor")
     with rc3:
         st.metric("Remaining Free Capacity", f"{remaining_capacity_kg:,.2f} Kg", f"{((1 - load_percentage) * 100):,.1f}% Available")
     with rc4:
         st.metric("Capacity Load Ratio", f"{(load_percentage * 100):,.1f} %")
 
-    # Visual Bar Progress Indikator Beban Reaktor
+    # Visual Progress Bar Indikator Beban Reaktor
     st.progress(load_percentage)
     if current_aquaregia_load_kg > TOTAL_MAX_CAPACITY_KG:
         st.error(f"⚠️ **CAPACITY OVERLOAD WARNING:** Current load ({current_aquaregia_load_kg:.2f} Kg) exceeds maximum limit of {TOTAL_MAX_CAPACITY_KG} Kg!")
@@ -203,8 +211,8 @@ else:
         val = str(row['Current Process']).strip()
         if val == target_completed_process:
             color = 'background-color: #d4edda; color: #155724;'
-        elif "Aquaregia Process" in val:
-            color = 'background-color: #fff3cd; color: #856404;'
+        elif val in stages_occupying_reactor:
+            color = 'background-color: #fff3cd; color: #856404;' # Kuning (menandakan material sedang mengisi reaktor)
         else:
             color = 'background-color: #cce5ff; color: #004085;'
         styles = [''] * len(row)
