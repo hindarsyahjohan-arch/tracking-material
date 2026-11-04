@@ -5,7 +5,7 @@ import time
 import io
 
 st.set_page_config(
-    page_title="Reactor Parameters & Work Sheet",
+    page_title="Reactor & Melting Parameters Work Sheet",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -30,7 +30,7 @@ def load_parameter_data():
 
 df_param = load_parameter_data()
 
-st.title("🧪 Reactor Parameters & Work Sheet Display")
+st.title("🧪 Production Work Sheet & Parameters")
 st.caption("Real-time monitoring for Floor Operator Tablets")
 st.divider()
 
@@ -56,90 +56,139 @@ else:
             return 0.0
 
     # --------------------------------------------------------------------------
-    # 1. HEADER DATA BATCH & OPERATOR
+    # 0. PILIHAN PROSES UTAMA (OPERATOR SELECTOR)
     # --------------------------------------------------------------------------
-    st.markdown("### 📌 Latest Batch Production Header")
-    col_h1, col_h2, col_h3, col_h4 = st.columns(4)
-    
-    col_h1.metric("Production Code", str(get_val(last_row, ["Kode Produksi", "Kode_Produksi"])))
-    col_h2.metric("Process Date", str(get_val(last_row, ["Tanggal"])))
-    col_h3.metric("Lead Operator", str(get_val(last_row, ["Operator"])))
-    col_h4.metric("Reactor Status", str(get_val(last_row, ["Status Reaktor", "Status_Reaktor"], "Active 🟢")))
+    selected_process_type = st.selectbox(
+        "📌 Select Work Sheet Process Type:",
+        [
+            "1. Gold Lead Making (Banting / Melting)",
+            "2. Refining Process (Reactor 1)"
+        ]
+    )
 
     st.divider()
 
     # --------------------------------------------------------------------------
-    # 2. TABS DETAIL PARAMETER
+    # KONDISI 1: TAMPILAN PROSES GOLD LEAD MAKING (BANTING / MELTING)
     # --------------------------------------------------------------------------
-    tab_neraca, tab_reaktor, tab_log = st.tabs([
-        "⚖️ Mass & Material Balance", 
-        "⚙️ Chemistry & Reactor 1 Parameters", 
-        "📋 Batch Parameter History"
-    ])
+    if "Gold Lead Making" in selected_process_type:
+        st.markdown("### 🔥 Gold Lead Making Work Sheet (Banting / Melting)")
+        
+        # Header Info Batch
+        col_h1, col_h2, col_h3, col_h4 = st.columns(4)
+        col_h1.metric("Production Code", str(get_val(last_row, ["Kode Produksi", "Kode_Produksi"])))
+        col_h2.metric("Process Date", str(get_val(last_row, ["Tanggal"])))
+        col_h3.metric("Lead Operator", str(get_val(last_row, ["Operator"])))
+        col_h4.metric("Status", "Active Melting 🟢")
 
-    # --- TAB 1: MASS BALANCE ---
-    with tab_neraca:
-        st.markdown("#### 📊 Material Balance (Melting & Refining)")
-        
-        w_in = clean_float(get_val(last_row, ["Weight In Gram", "Weight_In", "Weight In"], 0))
-        raw_purity = clean_float(get_val(last_row, ["Purity"], 0))
-        
-        purity_decimal = raw_purity / 100.0 if raw_purity > 1 else raw_purity
-        est_24k = w_in * purity_decimal
-        
-        w_out = clean_float(get_val(last_row, ["Weight Out", "Weight_Out"], 0))
-        loss = clean_float(get_val(last_row, ["Loss"], 0))
-        
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        col_m1.metric("Weight In (Gram)", f"{w_in:,.2f} g")
-        col_m2.metric("Alloy Purity", f"{raw_purity:.3f}%" if raw_purity > 1 else f"{raw_purity * 100:.3f}%")
-        col_m3.metric("Est. Au (99.99)", f"{est_24k:,.2f} g")
-        col_m4.metric("Losses", f"{loss:,.2f} g", delta_color="inverse")
+        st.divider()
 
-        st.markdown("---")
-        st.markdown("#### 📝 Weight Details Log")
-        
-        display_cols = [c for c in ["Kode Produksi", "Tanggal", "Weight In Gram", "Weight Out", "Sample", "Loss", "Operator"] if c in df_param.columns]
-        st.dataframe(df_param[display_cols].tail(5), use_container_width=True, hide_index=True)
+        col_b1, col_b2 = st.columns(2)
 
-    # --- TAB 2: REACTOR PARAMETERS ---
-    with tab_reaktor:
-        st.markdown("#### ⚗️ Chemical Solutions & Heating Parameters")
-        
-        col_r1, col_r2, col_r3 = st.columns(3)
-        
-        with col_r1:
-            st.info("**🧪 Acid & Reagents Usage**")
-            hno3_tank = get_val(last_row, ["HNO3 Tank", "HNO3_Tank"], 0)
-            hno3_shower = get_val(last_row, ["HNO3 Shower", "HNO3_Shower"], 0)
-            hcl = get_val(last_row, ["HCL"], 0)
-            total_aq = get_val(last_row, ["Total Aquaregia", "Total_Aquaregia"], 0)
-            water_add = get_val(last_row, ["Water_Add", "Water Add"], 0)
+        with col_b1:
+            st.markdown("#### ⚖️ Material Balance & Banting Data")
+            w_in = clean_float(get_val(last_row, ["Weight in", "Weight In Gram", "Weight_In"], 0))
+            raw_purity = clean_float(get_val(last_row, ["Purity"], 0))
+            purity_decimal = raw_purity / 100.0 if raw_purity > 1 else raw_purity
+            est_24k = w_in * purity_decimal
             
-            st.write(f"• **HNO3 Tank:** {hno3_tank} L")
-            st.write(f"• **HNO3 Shower:** {hno3_shower} L")
-            st.write(f"• **HCL:** {hcl} L")
-            st.write(f"• **Total Aquaregia:** {total_aq} L")
-            st.write(f"• **Water Added:** {water_add} L")
+            w_out = clean_float(get_val(last_row, ["Out", "Weight Out"], 0))
+            loss = clean_float(get_val(last_row, ["Loss"], 0))
+            sample = clean_float(get_val(last_row, ["Sample"], 0))
 
-        with col_r2:
-            st.warning("**🔥 Heating & Reductant**")
-            smb = get_val(last_row, ["SMB"], 0)
-            heat_temp = get_val(last_row, ["Heating Temp", "Heating_Temp"], 0)
-            heat_time = get_val(last_row, ["Heating Time", "Heating_Time"], 0)
-            
-            st.write(f"• **SMB (L/Kg):** {smb}")
-            st.write(f"• **Heating Temp:** {heat_temp} °C")
-            st.write(f"• **Heating Time:** {heat_time} Hours")
+            st.write(f"• **Weight In:** {w_in:,.2f} Gram")
+            st.write(f"• **Purity:** {raw_purity:.3f}%" if raw_purity > 1 else f"• **Purity:** {raw_purity * 100:.3f}%")
+            st.write(f"• **Est. 99.99 (24K):** {est_24k:,.2f} Gram")
+            st.markdown("---")
+            st.write(f"• **Banting In:** {w_in:,.2f} Gram")
+            st.write(f"• **Banting Out:** {w_out:,.2f} Gram")
+            st.write(f"• **Sample:** {sample:,.2f} Gram")
+            st.write(f"• **Loss:** {loss:,.2f} Gram")
+            st.write(f"• **Banting Operator:** {get_val(last_row, ['Banting Operator', 'Operator'], '-')}")
 
-        with col_r3:
-            st.success("**💨 Operational Notes**")
-            notes = get_val(last_row, ["Notes", "Catatan"], "No special notes.")
-            st.write(f"**Floor Remarks:**\n\n{notes}")
+        with col_b2:
+            st.markdown("#### ⚙️ Vacuum, Nitrogen & Furnace Parameters")
+            col_v1, col_v2 = st.columns(2)
+            with col_v1:
+                st.metric("Vacum 1 (s)", get_val(last_row, ["Vacum 1 (s)", "Vacum 1"], "30"))
+                st.metric("Nitrogen 1 (s)", get_val(last_row, ["Nitrogen 1 (s)", "Nitrogen 1"], "30"))
+                st.metric("Vacum 2 (s)", get_val(last_row, ["Vacum 2 (s)", "Vacum 2"], "30"))
+                st.metric("Nitrogen Status", get_val(last_row, ["Nitrogen"], "on"))
+                st.metric("Chiller (°C)", get_val(last_row, ["Chiller ( C)", "Chiller"], "25"))
+            with col_v2:
+                st.metric("First Heat (°C)", get_val(last_row, ["First Heat ( C)", "First Heat"], "1050"))
+                st.metric("Nitrogen (bar)", get_val(last_row, ["Nitrogen (bar )", "Nitrogen bar"], "6"))
+                st.metric("Speed (%)", get_val(last_row, ["Speed", "Speed (%)"], "55%"))
+                st.metric("Delay Heat (°C)", get_val(last_row, ["Delay Heat ( C)", "Delay Heat"], "970"))
+                st.metric("Cooling Nitrogen (bar)", get_val(last_row, ["Cooling Nitrogen (bar )", "Cooling N2"], "10"))
 
-    # --- TAB 3: HISTORY ---
-    with tab_log:
-        st.markdown("#### 📜 All Parameter Records")
-        st.dataframe(df_param, use_container_width=True, hide_index=True)
+    # --------------------------------------------------------------------------
+    Info KONDISI 2: TAMPILAN PROSES REFINING (REACTOR 1)
+    --------------------------------------------------------------------------
+    else:
+        st.markdown("### ⚗️ Refining Process Work Sheet (Reactor 1)")
+        
+        col_h1, col_h2, col_h3, col_h4 = st.columns(4)
+        col_h1.metric("Production Code", str(get_val(last_row, ["Kode Produksi", "Kode_Produksi"])))
+        col_h2.metric("Process Date", str(get_val(last_row, ["Tanggal"])))
+        col_h3.metric("Lead Operator", str(get_val(last_row, ["Operator"])))
+        col_h4.metric("Reactor Status", "Active Refining 🟢")
+
+        st.divider()
+
+        tab_reaktor1, tab_neraca, tab_timing, tab_history = st.tabs([
+            "⚗️ Reactor 1 Parameters", 
+            "⚖️ Mass & Refining Balance", 
+            "⏱️ Operator Time Log",
+            "📋 Batch Parameter History"
+        ])
+
+        with tab_reaktor1:
+            st.markdown("#### ⚗️ Chemical Solutions, Oxygen & Heating Parameters")
+            col_r1, col_r2, col_r3 = st.columns(3)
+            with col_r1:
+                st.metric("HNO3 from Tank (Ltr)", get_val(last_row, ["HNO3 dari Tank (Ltr)", "HNO3 Tank"], "0.00"))
+                st.metric("HNO3 from Shower (Ltr)", get_val(last_row, ["HNO3 dari Shower (Ltr)", "HNO3 Shower"], "0.00"))
+                st.metric("Initial HNO3 (%)", get_val(last_row, ["HNO3 Awal (%)", "HNO3 Awal"], "0%"))
+                st.metric("Dosing from Tank (Ltr)", get_val(last_row, ["Dosing dari tank (Ltr)", "Dosing Tank"], "0.00"))
+                st.metric("Dosing from Shower (Ltr)", get_val(last_row, ["Dosing dari shower (Ltr)", "Dosing Shower"], "0.00"))
+                st.metric("Dosing Pause (Minutes)", get_val(last_row, ["Jeda dosing (Menit)", "Dosing Pause"], "0"))
+            with col_r2:
+                st.metric("HCL (Ltr) [4x Alloy]", get_val(last_row, ["HCL (Ltr) 4 x berat alloy", "HCL"], "0.00"))
+                st.metric("Delay Air (Angin)", get_val(last_row, ["Delay Angin"], "0"))
+                st.metric("Open Air Duration", get_val(last_row, ["Lama Angin Buka"], "0"))
+                st.metric("Oxygen Parameter", get_val(last_row, ["Oxygen"], "-"))
+                st.metric("Cycle Time (')", get_val(last_row, ["Cycle Time (')"], "0"))
+            with col_r3:
+                st.metric("SMB (Ltr)", get_val(last_row, ["SMB (Ltr)", "SMB"], "0.00"))
+                st.metric("Heating Temp (°C)", get_val(last_row, ["Heating Temp", "Heating_Temp"], "0"))
+                st.metric("Heating Time (h)", get_val(last_row, ["Heating Time", "Heating_Time"], "0"))
+                st.metric("Total Aquaregia (Ltr)", get_val(last_row, ["Total Aquaregia"], "0.00"))
+
+        with tab_neraca:
+            st.markdown("#### 📊 Material Balance & Refining Stages")
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                w_in = clean_float(get_val(last_row, ["Weight in", "Weight In Gram"], 0))
+                st.write(f"• **Weight In:** {w_in:,.2f} Gram")
+                st.write(f"• **Purity:** {get_val(last_row, ['Purity'], '0')}%")
+            with col_m2:
+                st.write(f"• **Gold Powder Result:** {get_val(last_row, ['Powder'], '-')}")
+                st.write(f"• **Operators:** {get_val(last_row, ['Operator Refining', 'Operator'], '-')}")
+
+        with tab_timing:
+            st.markdown("#### ⏱️ Operator Operational Time Log")
+            col_t1, col_t2 = st.columns(2)
+            with col_t1:
+                st.write(f"• **Check Weight:** {get_val(last_row, ['Check Weight'], '-')}")
+                st.write(f"• **Melting Au:** {get_val(last_row, ['Melting Au'], '-')}")
+                st.write(f"• **Put in RC & Dissolve Au:** {get_val(last_row, ['Put in RC & dissolve Au'], '-')}")
+            with col_t2:
+                st.write(f"• **Granulating:** {get_val(last_row, ['Granulating'], '-')}")
+                st.write(f"• **Drying:** {get_val(last_row, ['Drying'], '-')}")
+
+        with tab_history:
+            st.markdown("#### 📜 Complete Parameter Records Table")
+            st.dataframe(df_param, use_container_width=True, hide_index=True)
 
 st.caption("🔄 Data automatically synchronized with Google Sheets 'Parameter' tab.")
