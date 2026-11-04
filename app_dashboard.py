@@ -22,6 +22,11 @@ PROCESS_LIST = [
     "8. Cast Bar Making"
 ]
 
+# Konfigurasi Kapasitas Reaktor Chemical Aquaregia
+CAPACITY_PER_REACTOR_KG = 50.0  # 50 Kg per Reaktor
+TOTAL_REACTORS = 2
+TOTAL_MAX_CAPACITY_KG = CAPACITY_PER_REACTOR_KG * TOTAL_REACTORS  # Total 100 Kg
+
 def load_data():
     try:
         if "/edit" in URL_ASLI_SHEET:
@@ -124,6 +129,35 @@ else:
     with col7:
         st.metric("WIP Est 24K (Kg)", f"{wip_est_24k_kg:,.2f}")
 
+    # ==============================================================================
+    # 🧪 AQUAREGIA REACTOR CAPACITY MONITORING SECTION
+    # ==============================================================================
+    st.divider()
+    st.subheader("🧪 Aquaregia Reactor Capacity Status (2 Units × 50 Kg)")
+    
+    # Filter material yang sedang berada di proses Aquaregia
+    aquaregia_df = df_leader[df_leader['Current Process'].str.contains("Aquaregia Process", case=False, na=False)]
+    current_aquaregia_load_kg = aquaregia_df['Weight (gr)'].sum() / 1000.0
+    remaining_capacity_kg = max(0.0, TOTAL_MAX_CAPACITY_KG - current_aquaregia_load_kg)
+    load_percentage = min(1.0, current_aquaregia_load_kg / TOTAL_MAX_CAPACITY_KG)
+
+    rc1, rc2, rc3, rc4 = st.columns(4)
+    with rc1:
+        st.metric("Total Installed Capacity", f"{TOTAL_MAX_CAPACITY_KG:,.1f} Kg", f"{TOTAL_REACTORS} Reactors")
+    with rc2:
+        st.metric("Current In-Use Weight", f"{current_aquaregia_load_kg:,.2f} Kg", f"{len(aquaregia_df)} Batches/Items")
+    with rc3:
+        st.metric("Remaining Free Capacity", f"{remaining_capacity_kg:,.2f} Kg", f"{((1 - load_percentage) * 100):,.1f}% Available")
+    with rc4:
+        st.metric("Capacity Load Ratio", f"{(load_percentage * 100):,.1f} %")
+
+    # Visual Bar Progress Indikator Beban Reaktor
+    st.progress(load_percentage)
+    if current_aquaregia_load_kg > TOTAL_MAX_CAPACITY_KG:
+        st.error(f"⚠️ **CAPACITY OVERLOAD WARNING:** Current load ({current_aquaregia_load_kg:.2f} Kg) exceeds maximum limit of {TOTAL_MAX_CAPACITY_KG} Kg!")
+    elif remaining_capacity_kg < 10.0:
+        st.warning(f"⚠️ **HIGH CAPACITY ALERT:** Reactor load is near maximum threshold ({remaining_capacity_kg:.2f} Kg remaining).")
+
     st.divider()
     st.subheader("📍 Latest Position of Each Material")
 
@@ -169,6 +203,8 @@ else:
         val = str(row['Current Process']).strip()
         if val == target_completed_process:
             color = 'background-color: #d4edda; color: #155724;'
+        elif "Aquaregia Process" in val:
+            color = 'background-color: #fff3cd; color: #856404;' # Highlight khusus warna kuning untuk Aquaregia
         else:
             color = 'background-color: #cce5ff; color: #004085;'
         styles = [''] * len(row)
