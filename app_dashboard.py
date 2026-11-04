@@ -5,8 +5,12 @@ import io
 import requests
 import time
 import plotly.express as px
+from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(page_title="Production Executive Dashboard", layout="wide")
+
+# Mengaktifkan Auto-Refresh setiap 10 detik (10000 milidetik)
+count = st_autorefresh(interval=10000, limit=None, key="dashboard_autorefresh")
 
 # Google Sheets Link
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?usp=sharing"
@@ -95,7 +99,7 @@ df_leader = load_data()
 df_checklist = load_checklist_log()
 
 st.title("📊 Production Executive Dashboard")
-st.markdown("Real-time monitoring summary for Management")
+st.markdown("Real-time monitoring summary for Management (Auto-Refresh Active 🔄)")
 st.divider()
 
 if df_leader.empty or 'Current Process' not in df_leader.columns:
@@ -135,8 +139,6 @@ else:
     st.divider()
     st.subheader("🧪 Aquaregia Reactor Capacity Status (2 Units × 100 Kg)")
     
-    # Material yang menduduki reaktor (Mulai dari Material Receiving sampai Reduction Aquaregia)
-    # Kapasitas akan kosong/reset kembali setelah masuk tahap "5. Au Sponge Cleaning" ke atas.
     stages_occupying_reactor = [
         "1. Material Receiving",
         "2. Gold Leaf Making",
@@ -159,7 +161,6 @@ else:
     with rc4:
         st.metric("Capacity Load Ratio", f"{(load_percentage * 100):,.1f} %")
 
-    # Visual Progress Bar Indikator Beban Reaktor
     st.progress(load_percentage)
     if current_aquaregia_load_kg > TOTAL_MAX_CAPACITY_KG:
         st.error(f"⚠️ **CAPACITY OVERLOAD WARNING:** Current load ({current_aquaregia_load_kg:.2f} Kg) exceeds maximum limit of {TOTAL_MAX_CAPACITY_KG} Kg!")
@@ -212,7 +213,7 @@ else:
         if val == target_completed_process:
             color = 'background-color: #d4edda; color: #155724;'
         elif val in stages_occupying_reactor:
-            color = 'background-color: #fff3cd; color: #856404;' # Kuning (menandakan material sedang mengisi reaktor)
+            color = 'background-color: #fff3cd; color: #856404;' 
         else:
             color = 'background-color: #cce5ff; color: #004085;'
         styles = [''] * len(row)
