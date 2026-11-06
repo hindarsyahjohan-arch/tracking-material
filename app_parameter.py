@@ -57,6 +57,9 @@ else:
         except:
             return 0.0
 
+    # Ambil Nama Operator langsung dari Google Sheet
+    gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
+
     # --------------------------------------------------------------------------
     # PILIHAN PROSES UTAMA
     # --------------------------------------------------------------------------
@@ -83,38 +86,29 @@ else:
         
         col_h1.metric("Production Code", prod_code)
         col_h2.metric("Process Date", process_date)
-        col_h3.metric("Status", "Active Melting 🟢")
-        col_h4.metric("Mode", "Operator Input Form")
+        col_h3.metric("Operator (GSheet)", gsheet_operator)
+        col_h4.metric("Status", "Active Melting 🟢")
 
         st.divider()
 
-        # FORM INPUT OPERATOR UNTUK BANTING
+        # FORM INPUT OPERATOR UNTUK BANTING (Hanya Waktu & Notes)
         with st.form("form_banting_operator"):
             col_b1, col_b2 = st.columns(2)
 
             with col_b1:
-                st.markdown("#### ⚖️ Material Balance (Google Sheet Data vs Operator Input)")
+                st.markdown("#### ⚖️ Material Balance (Google Sheet Data)")
                 w_in = clean_float(get_val(last_row, ["Weight in", "Weight In Gram", "Weight_In"], 50138.91))
                 raw_purity = clean_float(get_val(last_row, ["Purity"], 99.124))
-                purity_decimal = raw_purity / 100.0 if raw_purity > 1 else raw_purity
-                est_24k = w_in * purity_decimal
 
                 st.info(f"• **Weight In (GSheet):** {w_in:,.2f} Gram")
                 st.info(f"• **Purity (GSheet):** {raw_purity:.3f}%" if raw_purity > 1 else f"• **Purity:** {raw_purity * 100:.3f}%")
-                st.info(f"• **Est. 99.99 (24K):** {est_24k:,.2f} Gram")
+                st.info(f"• **Operator (GSheet):** {gsheet_operator}")
 
                 st.markdown("---")
-                st.markdown("##### ✍️ Data yang Diisi Operator:")
-                banting_out = st.number_input("Banting Out (Gram):", value=50140.20, format="%.2f")
-                sample_val = st.number_input("Sample (Gram):", value=0.00, format="%.2f")
-                
-                # Hitung Loss Otomatis: In - Out - Sample
-                calculated_loss = w_in - banting_out - sample_val
-                st.write(f"• **Calculated Loss:** {calculated_loss:,.2f} Gram")
-                
-                op_banting = st.text_input("Operator Name:", placeholder="Masukkan nama operator...")
+                st.markdown("##### ✍️ Waktu & Catatan (Diisi Operator):")
                 start_proc = st.text_input("Start Process Time:", placeholder="Contoh: 08:00")
                 finish_proc = st.text_input("Finish Process Time:", placeholder="Contoh: 12:00")
+                notes_val = st.text_area("Notes / Catatan:", placeholder="Masukkan catatan proses banting...")
 
             with col_b2:
                 st.markdown("#### ⚙️ Vacuum, Nitrogen & Furnace Parameters (From Google Sheet)")
@@ -129,23 +123,21 @@ else:
                 st.write(f"• **Delay Heat (°C):** {get_val(last_row, ['Delay Heat ( C)'], '970')}")
                 st.write(f"• **Cooling Nitrogen (bar):** {get_val(last_row, ['Cooling Nitrogen (bar )'], '10')}")
 
-            submit_banting = st.form_submit_button("📤 Submit Banting Data to Google Sheets", use_container_width=True)
+            submit_banting = st.form_submit_button("📤 Submit Process Log to Google Sheets", use_container_width=True)
             if submit_banting:
                 payload = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "proses": "Gold Lead Making",
                     "kode_produksi": prod_code,
-                    "weight_out": banting_out,
-                    "sample": sample_val,
-                    "loss": calculated_loss,
-                    "operator": op_banting,
+                    "operator": gsheet_operator,
                     "start_process": start_proc,
-                    "finish_process": finish_proc
+                    "finish_process": finish_proc,
+                    "notes": notes_val
                 }
                 try:
                     resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
                     if resp.status_code == 200:
-                        st.success("🎉 Data Banting successfully saved to Google Sheets!")
+                        st.success("🎉 Process log successfully saved to Google Sheets!")
                     else:
                         st.error(f"❌ Failed: {resp.text}")
                 except Exception as e:
@@ -162,15 +154,14 @@ else:
         col_h1, col_h2, col_h3, col_h4 = st.columns(4)
         col_h1.metric("Production Code", prod_code)
         col_h2.metric("Process Date", str(get_val(last_row, ["Tanggal"], "9/17/2026")))
-        col_h3.metric("Status", "Active Refining 🟢")
-        col_h4.metric("Mode", "Operator Input Form")
+        col_h3.metric("Operator (GSheet)", gsheet_operator)
+        col_h4.metric("Status", "Active Refining 🟢")
 
         st.divider()
 
-        tab_reaktor1, tab_neraca, tab_timing = st.tabs([
+        tab_reaktor1, tab_timing = st.tabs([
             "⚗️ Reactor 1 Parameters (GSheet)", 
-            "⚖️ Mass & Refining Balance (Input)", 
-            "⏱️ Operator Time Log (Input)"
+            "⏱️ Operator Time Log & Notes (Input)"
         ])
 
         # TAB 1: PARAMETER DARI GOOGLE SHEET
@@ -192,30 +183,11 @@ else:
                 st.write(f"• **Heating Temp:** {get_val(last_row, ['Heating Temp'], '0')}")
                 st.write(f"• **Heating Time (h):** {get_val(last_row, ['Heating Time (h)'], '0')}")
 
-        # TAB 2: MASS & REFINING BALANCE (ISIAN OPERATOR)
-        with tab_neraca:
-            st.markdown("#### ✍️ Input Isian Operator (Refining)")
-            with st.form("form_refining_balance"):
-                col_m1, col_m2 = st.columns(2)
-                with col_m1:
-                    w_in_ref = clean_float(get_val(last_row, ["Weight in", "Weight In Gram"], 40544.72))
-                    st.info(f"Weight In (GSheet): {w_in_ref:,.2f} Gram")
-                    add_val = st.number_input("Add Solutions (Gram):", value=5273.10, format="%.2f")
-                with col_m2:
-                    powder_res = st.text_input("Gold Powder Result:", placeholder="Nama/Kode Powder...")
-                    op_ref = st.text_input("Operator Refining Name:", placeholder="Nama operator...")
-
-                smb_val = st.number_input("SMB (Ltr) [Diisi Operator]:", value=0.00, format="%.2f")
-                waktu_proses = st.number_input("Waktu Proses (') [Diisi Operator]:", value=0.0)
-                water_add_val = st.number_input("Water Add (Ltr) [Diisi Operator]:", value=0.00, format="%.2f")
-
-                submit_ref = st.form_submit_button("📤 Submit Refining Balance to GSheets", use_container_width=True)
-                if submit_ref:
-                    st.success("🎉 Refining balance data submitted successfully!")
-
-        # TAB 3: OPERATOR TIME LOG (ISIAN OPERATOR SEMUA)
+        # TAB 2: OPERATOR TIME LOG & NOTES
         with tab_timing:
-            st.markdown("#### ⏱️ Time Log (Semua Diisi oleh Operator)")
+            st.markdown("#### ⏱️ Time Log & Notes (Diisi oleh Operator)")
+            st.info(f"Operator Aktif (Dari GSheet): **{gsheet_operator}**")
+            
             with st.form("form_timelog_operator"):
                 col_t1, col_t2 = st.columns(2)
                 with col_t1:
@@ -231,8 +203,11 @@ else:
                     t_gran = st.text_input("Granulating:", placeholder="Jam / Waktu...")
                     t_dry = st.text_input("Drying:", placeholder="Jam / Waktu...")
 
-                submit_time = st.form_submit_button("📤 Submit Time Log to GSheets", use_container_width=True)
+                st.markdown("---")
+                refining_notes = st.text_area("Process Notes / Catatan Refining:", placeholder="Masukkan catatan proses reaktor...")
+
+                submit_time = st.form_submit_button("📤 Submit Time Log & Notes to GSheets", use_container_width=True)
                 if submit_time:
-                    st.success("🎉 Time log data submitted successfully!")
+                    st.success("🎉 Time log & notes submitted successfully!")
 
 st.caption("🔄 Form inputs synchronized with Google Sheets parameters.")
