@@ -79,7 +79,6 @@ else:
     if "Gold Lead Making" in selected_process_type:
         st.markdown("### 🔥 Gold Lead Making Work Sheet (Banting / Melting)")
         
-        # Header Info Batch (Dari Google Sheet)
         col_h1, col_h2, col_h3, col_h4 = st.columns(4)
         prod_code = str(get_val(last_row, ["Kode Produksi", "Kode_Produksi"], "YT031126-2"))
         process_date = str(get_val(last_row, ["Tanggal"], "11/3/2026"))
@@ -91,7 +90,6 @@ else:
 
         st.divider()
 
-        # FORM INPUT OPERATOR UNTUK BANTING (Hanya Waktu & Notes)
         with st.form("form_banting_operator"):
             col_b1, col_b2 = st.columns(2)
 
@@ -160,28 +158,60 @@ else:
         st.divider()
 
         tab_reaktor1, tab_timing = st.tabs([
-            "⚗️ Reactor 1 Parameters (GSheet)", 
+            "⚗️ Reactor 1 Parameters (Working Data)", 
             "⏱️ Operator Time Log & Notes (Input)"
         ])
 
-        # TAB 1: PARAMETER DARI GOOGLE SHEET
+        # TAB 1: PARAMETER DARI GOOGLE SHEET (MENYESUAIKAN LAYOUT HMI WORKING DATA REACTOR 1)[cite: 8]
         with tab_reaktor1:
-            st.markdown("#### 📋 Data Otomatis dari Google Sheet")
-            col_r1, col_r2, col_r3 = st.columns(3)
-            with col_r1:
-                st.write(f"• **HNO3 dari Tank (Ltr):** {get_val(last_row, ['HNO3 dari Tank (Ltr)'], '0.47')}")
-                st.write(f"• **HNO3 dari Shower (Ltr):** {get_val(last_row, ['HNO3 dari Shower (Ltr)'], '0')}")
-                st.write(f"• **HNO3 Awal (%):** {get_val(last_row, ['HNO3 Awal (%)'], '0')}")
-                st.write(f"• **Dosing dari tank (Ltr):** {get_val(last_row, ['Dosing dari tank (Ltr)'], '0')}")
-            with col_r2:
-                st.write(f"• **HCL (Ltr) 4x berat alloy:** {get_val(last_row, ['HCL (Ltr) 4 x berat alloy'], '0')}")
-                st.write(f"• **Delay Angin:** {get_val(last_row, ['Delay Angin'], '0')}")
-                st.write(f"• **Oxygen:** {get_val(last_row, ['Oxygen'], '0')}")
-                st.write(f"• **Cycle Time ('):** {get_val(last_row, ['Cycle Time (\')'], '0')}")
-            with col_r3:
-                st.write(f"• **Total Aquaregia:** {get_val(last_row, ['Total Aquaregia'], '0')}")
-                st.write(f"• **Heating Temp:** {get_val(last_row, ['Heating Temp'], '0')}")
-                st.write(f"• **Heating Time (h):** {get_val(last_row, ['Heating Time (h)'], '0')}")
+            st.markdown("#### 🖥️ Working Data Reactor 1 (Live from Google Sheet)")
+            
+            col_w1, col_w2 = st.columns(2)
+
+            with col_w1:
+                # Kotak 1: HNO3 [nitric acid]
+                st.markdown("##### 🧪 HNO3 [nitric acid]")
+                st.info(
+                    f"• **Total Quantity Lt tank:** {get_val(last_row, ['HNO3 dari Tank (Ltr)', 'Total Quantity Lt tank'], '18.09')}\n\n"
+                    f"• **Total Quantity from shower:** {get_val(last_row, ['HNO3 dari Shower (Ltr)', 'Total Quantity from shower'], '0.00')}\n\n"
+                    f"• **% injection 1ª fase:** {get_val(last_row, ['HNO3 Awal (%)', '% injection 1ª fase'], '20')}\n\n"
+                    f"• **Injection dosage Lt:** {get_val(last_row, ['Injection dosage Lt', 'Dosing dari tank (Ltr)'], '0.29')}\n\n"
+                    f"• **Lt dosing shower injection:** {get_val(last_row, ['Lt dosing shower injection', 'Dosing dari shower (Ltr)'], '0.00')}\n\n"
+                    f"• **Pause-Dossage Min/Sec:** {get_val(last_row, ['Pause-Dossage Min/Sec', 'Jeda dosing (Menit)'], '2')}"
+                )
+
+                # Kotak 2: HCL [hydrochloric acid]
+                st.markdown("##### 🧪 HCL [hydrochloric acid]")
+                st.info(
+                    f"• **Total Quantity Lt:** {get_val(last_row, ['HCL (Ltr) 4 x berat alloy', 'HCL Total'], '154.02')}"
+                )
+
+                # Kotak 3: MISCELATION HCL
+                st.markdown("##### ⚙️ MISCELATION HCL")
+                st.info(
+                    f"• **Mins/Sec Start delay:** {get_val(last_row, ['Mins/Sec Start delay', 'Delay Angin'], '10 | 0')}\n\n"
+                    f"• **Min/Sec Miscelation:** {get_val(last_row, ['Min/Sec Miscelation', 'Lama Angin Buka'], '12 | 0')}"
+                )
+
+            with col_w2:
+                # Kotak 4: PROCESSING
+                st.markdown("##### ⚙️ PROCESSING")
+                st.info(
+                    f"• **Cycle Hours/Min:** {get_val(last_row, ['Cycle Time (\')', 'Cycle Hours/Min'], '4 | 0')}\n\n"
+                    f"• **Delay mixer start Min/Sec:** {get_val(last_row, ['Delay mixer start Min/Sec'], '60 | 0')}\n\n"
+                    f"• **Min. Mix water:** {get_val(last_row, ['Min. Mix water', 'Water Add'], '30')}\n\n"
+                    f"• **Min waiting Filtration 1:** {get_val(last_row, ['Min waiting Filtration 1'], '0')}\n\n"
+                    f"• **Min. Buchner 1 > Storage:** {get_val(last_row, ['Min. Buchner 1 > Storage'], '0')}\n\n"
+                    f"• **Min. Storage:** {get_val(last_row, ['Min. Storage'], '0')}\n\n"
+                    f"• **Min. Buchner 2 > Précipitator:** {get_val(last_row, ['Min. Buchner 2 > Précipitator'], '0')}"
+                )
+
+                # Kotak 5: HEATING
+                st.markdown("##### 🔥 HEATING")
+                st.info(
+                    f"• **Heating Temperature:** {get_val(last_row, ['Heating Temp', 'Heating Temperature'], '70.0')} °C\n\n"
+                    f"• **Heating Hours/Min:** {get_val(last_row, ['Heating Time (h)', 'Heating Hours/Min'], '4 | 0')}"
+                )
 
         # TAB 2: OPERATOR TIME LOG & NOTES
         with tab_timing:
