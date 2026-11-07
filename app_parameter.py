@@ -221,9 +221,9 @@ else:
             with st.form("form_timelog_operator"):
                 col_t1, col_t2 = st.columns(2)
                 with col_t1:
-                    t_checkw1 = st.text_input("Check Weight (1):", placeholder="Jam / Waktu...")
-                    t_meltau = st.text_input("Melting Au:", placeholder="Jam / Waktu...")
-                    t_checkw2 = st.text_input("Check Weight (2):", placeholder="Jam / Waktu...")
+                    # t_checkw1 = st.text_input("Check Weight (1):", placeholder="Jam / Waktu...")
+                    # t_meltau = st.text_input("Melting Au:", placeholder="Jam / Waktu...")
+                    # t_checkw2 = st.text_input("Check Weight (2):", placeholder="Jam / Waktu...")
                     t_putrc = st.text_input("Put in RC & dissolve Au:", placeholder="Jam / Waktu...")
                     t_cyclersr = st.text_input("Cycle R-SR:", placeholder="Jam / Waktu...")
                 with col_t2:
