@@ -15,7 +15,7 @@ st.set_page_config(
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?gid=577877479#gid=577877479"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzlpjjCYCyMm9Ehw_3gCTo-9tlQOsQST44yOWqs2DNZmmsdTlXsb6yRpe1EGvUR8sj9/exec"
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=2)
 def load_parameter_data():
     try:
         base_url = URL_ASLI_SHEET.split("/edit")[0]
@@ -163,11 +163,12 @@ else:
 
         df_refining = df_param.copy()
         
-        # 1. Filter baris berdasarkan Kolom Reaktor (1 atau 2)
+        # Konversi kolom Reaktor ke string agar pencocokan akurat
         if 'Reaktor' in df_refining.columns:
-            df_refining = df_refining[df_refining['Reaktor'].astype(str).str.strip() == str(target_reactor_val)]
+            df_refining['Reaktor_Clean'] = df_refining['Reaktor'].astype(str).str.replace('.0', '', regex=False).str.strip()
+            df_refining = df_refining[df_refining['Reaktor_Clean'] == str(target_reactor_val)]
 
-        # 2. Filter baris di mana Status Aquaregia KOSONG / NaN
+        # Filter baris di mana Status Aquaregia KOSONG / NaN
         if 'Status Aquaregia' in df_refining.columns and not df_refining.empty:
             mask_kosong = df_refining['Status Aquaregia'].isna() | (df_refining['Status Aquaregia'].astype(str).str.strip().isin(['', 'nan', 'None']))
             df_refining_filtered = df_refining[mask_kosong]
@@ -198,7 +199,6 @@ else:
             "⏱️ Operator Time Log & Notes (Input)"
         ])
 
-        # TAB 1: PARAMETER DARI GOOGLE SHEET (HMI WORKING DATA)
         with tab_reaktor:
             st.markdown(f"#### 🖥️ Working Data {reactor_label} (Live from Google Sheet)")
             
@@ -244,7 +244,6 @@ else:
                     f"• **Heating Hours/Min:** {get_val(last_row, ['Heating Time (h)', 'Heating Hours/Min'], '4 | 0')}"
                 )
 
-        # TAB 2: OPERATOR TIME LOG & NOTES
         with tab_timing:
             st.markdown(f"#### ⏱️ Time Log & Notes ({reactor_label} - Diisi oleh Operator)")
             st.info(f"Operator Aktif (Dari GSheet): **{gsheet_operator}** | Reaktor: **{target_reactor_val}**")
@@ -283,4 +282,7 @@ else:
                     except Exception as e:
                         st.error(f"❌ Connection error: {e}")
 
-st.caption("🔄 Form inputs synchronized with Google Sheets parameters.")
+    # Tambahkan Expander Debug untuk melihat isi data mentah dari Google Sheet
+    with st.expander("🛠️ Debug Data Google Sheet"):
+        st.write("Data mentah yang terbaca dari tab Parameter:")
+        st.dataframe(df_param)
