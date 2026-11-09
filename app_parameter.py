@@ -40,8 +40,6 @@ if df_param.empty:
     st.warning("⚠️ No data found in the 'Parameter' tab or connection blocked.")
     st.info("Please make sure the Google Sheet 'Parameter' tab is populated.")
 else:
-    last_row = df_param.iloc[-1]
-    
     def get_val(df_row, possible_keys, default="-"):
         for key in possible_keys:
             if key in df_row and pd.notna(df_row[key]):
@@ -57,11 +55,8 @@ else:
         except:
             return 0.0
 
-    # Ambil Nama Operator langsung dari Google Sheet
-    gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
-
     # --------------------------------------------------------------------------
-    # PILIHAN PROSES UTAMA (TERMASUK REAKTOR 1 & 2)
+    # PILIHAN PROSES UTAMA
     # --------------------------------------------------------------------------
     selected_process_type = st.selectbox(
         "📌 Select Work Sheet Process Type:",
@@ -76,8 +71,20 @@ else:
 
     # ==========================================================================
     # PROSES 1: GOLD LEAD MAKING (BANTING / MELTING)
+    # Filter: Status Banting belum done atau kosong
     # ==========================================================================
     if "Gold Lead Making" in selected_process_type:
+        df_banting = df_param.copy()
+        if 'Status Banting' in df_banting.columns:
+            # Ambil yang status bantingnya kosong/nan atau bukan 'done'/'selesai'
+            df_banting['Status Banting'] = df_banting['Status Banting'].astype(str).str.lower().str.strip()
+            df_banting = df_banting[df_banting['Status Banting'].isin(['nan', '', 'none', 'pending', 'process', '0'])]
+            if df_banting.empty:
+                df_banting = df_param # Fallback jika semua sudah done
+        
+        last_row = df_banting.iloc[-1]
+        gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
+
         st.markdown("### 🔥 Gold Lead Making Work Sheet (Banting / Melting)")
         
         col_h1, col_h2, col_h3, col_h4 = st.columns(4)
@@ -87,7 +94,7 @@ else:
         col_h1.metric("Production Code", prod_code)
         col_h2.metric("Process Date", process_date)
         col_h3.metric("Operator (GSheet)", gsheet_operator)
-        col_h4.metric("Status", "Active Melting 🟢")
+        col_h4.metric("Status", "Pending / Active Melting 🟢")
 
         st.divider()
 
@@ -127,7 +134,7 @@ else:
                 payload = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "proses": "Gold Lead Making",
-                    "reaktor": "-",
+                    "reaktor": "",
                     "kode_produksi": prod_code,
                     "operator": gsheet_operator,
                     "start_process": start_proc,
@@ -144,12 +151,31 @@ else:
                     st.error(f"❌ Connection error: {e}")
 
     # ==========================================================================
-    # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / REACTOR 2)
+    # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / 2)
+    # Filter: Status Aquaregia sudah selesai dan Kolom Reaktor sesuai (1 atau 2)
     # ==========================================================================
     else:
         is_reactor_2 = "Reactor 2" in selected_process_type
+        target_reactor_val = 2 if is_reactor_2 else 1
         reactor_label = "Reactor 2" if is_reactor_2 else "Reactor 1"
+
+        df_refining = df_param.copy()
         
+        # 1. Filter status Aquaregia sudah selesai
+        if 'Status Aquaregia' in df_refining.columns:
+            df_refining = df_refining[df_refining['Status Aquaregia'].astype(str).str.lower().isin(['selesai', 'done', 'completed', '1'])]
+            if df_refining.empty:
+                df_refining = df_param
+
+        # 2. Filter nomor Reaktor (1 atau 2)
+        if 'Reaktor' in df_refining.columns:
+            df_refining = df_refining[df_refining['Reaktor'].astype(str).str.strip() == str(target_reactor_val)]
+            if df_refining.empty:
+                df_refining = df_param
+
+        last_row = df_refining.iloc[-1]
+        gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
+
         st.markdown(f"### ⚗️ Refining Process Work Sheet ({reactor_label})")
         
         prod_code = str(get_val(last_row, ["Kode Produksi", "Kode_Produksi"], "YT170926-8"))
@@ -216,9 +242,9 @@ else:
         # TAB 2: OPERATOR TIME LOG & NOTES
         with tab_timing:
             st.markdown(f"#### ⏱️ Time Log & Notes ({reactor_label} - Diisi oleh Operator)")
-            st.info(f"Operator Aktif (Dari GSheet): **{gsheet_operator}** | Target: **{reactor_label}**")
+            st.info(f"Operator Aktif (Dari GSheet): **{gsheet_operator}** | Reaktor: **{target_reactor_val}**")
             
-            with st.form(f"form_timelog_operator_{reactor_label.lower().replace(' ', '_')}"):
+            with st.form(f"form_timelog_operator_{target_reactor_val}"):
                 col_t1, col_t2 = st.columns(2)
                 with col_t1:
                     t_putrc = st.text_input("Put in RC & dissolve Au:", placeholder="Jam / Waktu...")
@@ -238,7 +264,7 @@ else:
                     payload = {
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "proses": "Refining Process",
-                        "reaktor": reactor_label,
+                        "reaktor": str(target_reactor_val),
                         "kode_produksi": prod_code,
                         "operator": gsheet_operator,
                         "notes": refining_notes
