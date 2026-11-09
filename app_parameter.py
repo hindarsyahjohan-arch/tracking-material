@@ -61,13 +61,14 @@ else:
     gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
 
     # --------------------------------------------------------------------------
-    # PILIHAN PROSES UTAMA
+    # PILIHAN PROSES UTAMA (TERMASUK REAKTOR 1 & 2)
     # --------------------------------------------------------------------------
     selected_process_type = st.selectbox(
         "📌 Select Work Sheet Process Type:",
         [
             "1. Gold Lead Making (Banting / Melting)",
-            "2. Refining Process (Reactor 1)"
+            "2. Refining Process (Reactor 1)",
+            "3. Refining Process (Reactor 2)"
         ]
     )
 
@@ -126,6 +127,7 @@ else:
                 payload = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "proses": "Gold Lead Making",
+                    "reaktor": "-",
                     "kode_produksi": prod_code,
                     "operator": gsheet_operator,
                     "start_process": start_proc,
@@ -142,10 +144,13 @@ else:
                     st.error(f"❌ Connection error: {e}")
 
     # ==========================================================================
-    # PROSES 2: REFINING PROCESS (REACTOR 1)
+    # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / REACTOR 2)
     # ==========================================================================
     else:
-        st.markdown("### ⚗️ Refining Process Work Sheet (Reactor 1)")
+        is_reactor_2 = "Reactor 2" in selected_process_type
+        reactor_label = "Reactor 2" if is_reactor_2 else "Reactor 1"
+        
+        st.markdown(f"### ⚗️ Refining Process Work Sheet ({reactor_label})")
         
         prod_code = str(get_val(last_row, ["Kode Produksi", "Kode_Produksi"], "YT170926-8"))
         
@@ -153,23 +158,22 @@ else:
         col_h1.metric("Production Code", prod_code)
         col_h2.metric("Process Date", str(get_val(last_row, ["Tanggal"], "9/17/2026")))
         col_h3.metric("Operator (GSheet)", gsheet_operator)
-        col_h4.metric("Status", "Active Refining 🟢")
+        col_h4.metric("Status", f"Active Refining ({reactor_label}) 🟢")
 
         st.divider()
 
-        tab_reaktor1, tab_timing = st.tabs([
-            "⚗️ Reactor 1 Parameters (Working Data)", 
+        tab_reaktor, tab_timing = st.tabs([
+            f"⚗️ {reactor_label} Parameters (Working Data)", 
             "⏱️ Operator Time Log & Notes (Input)"
         ])
 
-        # TAB 1: PARAMETER DARI GOOGLE SHEET (MENYESUAIKAN LAYOUT HMI WORKING DATA REACTOR 1)[cite: 8]
-        with tab_reaktor1:
-            st.markdown("#### 🖥️ Working Data Reactor 1 (Live from Google Sheet)")
+        # TAB 1: PARAMETER DARI GOOGLE SHEET (HMI WORKING DATA)
+        with tab_reaktor:
+            st.markdown(f"#### 🖥️ Working Data {reactor_label} (Live from Google Sheet)")
             
             col_w1, col_w2 = st.columns(2)
 
             with col_w1:
-                # Kotak 1: HNO3 [nitric acid]
                 st.markdown("##### 🧪 HNO3 [nitric acid]")
                 st.info(
                     f"• **Total Quantity Lt tank:** {get_val(last_row, ['HNO3 dari Tank (Ltr)', 'Total Quantity Lt tank'], '18.09')}\n\n"
@@ -180,13 +184,11 @@ else:
                     f"• **Pause-Dossage Min/Sec:** {get_val(last_row, ['Pause-Dossage Min/Sec', 'Jeda dosing (Menit)'], '2')}"
                 )
 
-                # Kotak 2: HCL [hydrochloric acid]
                 st.markdown("##### 🧪 HCL [hydrochloric acid]")
                 st.info(
                     f"• **Total Quantity Lt:** {get_val(last_row, ['HCL (Ltr) 4 x berat alloy', 'HCL Total'], '154.02')}"
                 )
 
-                # Kotak 3: MISCELATION HCL
                 st.markdown("##### ⚙️ MISCELATION HCL")
                 st.info(
                     f"• **Mins/Sec Start delay:** {get_val(last_row, ['Mins/Sec Start delay', 'Delay Angin'], '10 | 0')}\n\n"
@@ -194,7 +196,6 @@ else:
                 )
 
             with col_w2:
-                # Kotak 4: PROCESSING
                 st.markdown("##### ⚙️ PROCESSING")
                 st.info(
                     f"• **Cycle Hours/Min:** {get_val(last_row, ['Cycle Time (\')', 'Cycle Hours/Min'], '4 | 0')}\n\n"
@@ -206,7 +207,6 @@ else:
                     f"• **Min. Buchner 2 > Précipitator:** {get_val(last_row, ['Min. Buchner 2 > Précipitator'], '0')}"
                 )
 
-                # Kotak 5: HEATING
                 st.markdown("##### 🔥 HEATING")
                 st.info(
                     f"• **Heating Temperature:** {get_val(last_row, ['Heating Temp', 'Heating Temperature'], '70.0')} °C\n\n"
@@ -215,15 +215,12 @@ else:
 
         # TAB 2: OPERATOR TIME LOG & NOTES
         with tab_timing:
-            st.markdown("#### ⏱️ Time Log & Notes (Diisi oleh Operator)")
-            st.info(f"Operator Aktif (Dari GSheet): **{gsheet_operator}**")
+            st.markdown(f"#### ⏱️ Time Log & Notes ({reactor_label} - Diisi oleh Operator)")
+            st.info(f"Operator Aktif (Dari GSheet): **{gsheet_operator}** | Target: **{reactor_label}**")
             
-            with st.form("form_timelog_operator"):
+            with st.form(f"form_timelog_operator_{reactor_label.lower().replace(' ', '_')}"):
                 col_t1, col_t2 = st.columns(2)
                 with col_t1:
-                    # t_checkw1 = st.text_input("Check Weight (1):", placeholder="Jam / Waktu...")
-                    # t_meltau = st.text_input("Melting Au:", placeholder="Jam / Waktu...")
-                    # t_checkw2 = st.text_input("Check Weight (2):", placeholder="Jam / Waktu...")
                     t_putrc = st.text_input("Put in RC & dissolve Au:", placeholder="Jam / Waktu...")
                     t_cyclersr = st.text_input("Cycle R-SR:", placeholder="Jam / Waktu...")
                 with col_t2:
@@ -234,10 +231,25 @@ else:
                     t_dry = st.text_input("Drying:", placeholder="Jam / Waktu...")
 
                 st.markdown("---")
-                refining_notes = st.text_area("Process Notes / Catatan Refining:", placeholder="Masukkan catatan proses reaktor...")
+                refining_notes = st.text_area(f"Process Notes / Catatan ({reactor_label}):", placeholder="Masukkan catatan proses reaktor...")
 
-                submit_time = st.form_submit_button("📤 Submit Time Log & Notes to GSheets", use_container_width=True)
+                submit_time = st.form_submit_button(f"📤 Submit {reactor_label} Time Log & Notes to GSheets", use_container_width=True)
                 if submit_time:
-                    st.success("🎉 Time log & notes submitted successfully!")
+                    payload = {
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "proses": "Refining Process",
+                        "reaktor": reactor_label,
+                        "kode_produksi": prod_code,
+                        "operator": gsheet_operator,
+                        "notes": refining_notes
+                    }
+                    try:
+                        resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+                        if resp.status_code == 200:
+                            st.success(f"🎉 {reactor_label} log & notes successfully saved to Google Sheets!")
+                        else:
+                            st.error(f"❌ Failed: {resp.text}")
+                    except Exception as e:
+                        st.error(f"❌ Connection error: {e}")
 
 st.caption("🔄 Form inputs synchronized with Google Sheets parameters.")
