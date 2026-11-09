@@ -71,20 +71,17 @@ else:
 
     # ==========================================================================
     # PROSES 1: GOLD LEAD MAKING (BANTING / MELTING)
-    # Filter: Ambil baris pertama yang 'Status Banting' nya KOSONG / NaN
     # ==========================================================================
     if "Gold Lead Making" in selected_process_type:
         df_banting = df_param.copy()
         
         if 'Status Banting' in df_banting.columns:
-            # Saring baris yang statusnya kosong, NaN, atau string kosong
             mask_kosong = df_banting['Status Banting'].isna() | (df_banting['Status Banting'].astype(str).str.strip().isin(['', 'nan', 'None']))
             df_banting_filtered = df_banting[mask_kosong]
             
             if not df_banting_filtered.empty:
-                last_row = df_banting_filtered.iloc[0] # Ambil data teratas yang statusnya kosong
+                last_row = df_banting_filtered.iloc[0]
             else:
-                st.info("ℹ️ Semua data banting sudah berstatus selesai (tidak ada yang kosong). Menampilkan baris terakhir sebagai referensi.")
                 last_row = df_banting.iloc[-1]
         else:
             last_row = df_banting.iloc[-1]
@@ -158,7 +155,6 @@ else:
 
     # ==========================================================================
     # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / 2)
-    # Filter: Ambil baris di mana 'Status Aquaregia' KOSONG & 'Reaktor' sesuai (1 atau 2)
     # ==========================================================================
     else:
         is_reactor_2 = "Reactor 2" in selected_process_type
@@ -167,19 +163,18 @@ else:
 
         df_refining = df_param.copy()
         
-        # 1. Filter kolom Reaktor sesuai pilihan (1 atau 2)
+        # 1. Filter baris berdasarkan Kolom Reaktor (1 atau 2)
         if 'Reaktor' in df_refining.columns:
             df_refining = df_refining[df_refining['Reaktor'].astype(str).str.strip() == str(target_reactor_val)]
 
-        # 2. Filter Status Aquaregia yang KOSONG / NaN
+        # 2. Filter baris di mana Status Aquaregia KOSONG / NaN
         if 'Status Aquaregia' in df_refining.columns and not df_refining.empty:
-            mask_aquaregia_kosong = df_refining['Status Aquaregia'].isna() | (df_refining['Status Aquaregia'].astype(str).str.strip().isin(['', 'nan', 'None']))
-            df_refining_filtered = df_refining[mask_aquaregia_kosong]
+            mask_kosong = df_refining['Status Aquaregia'].isna() | (df_refining['Status Aquaregia'].astype(str).str.strip().isin(['', 'nan', 'None']))
+            df_refining_filtered = df_refining[mask_kosong]
             
             if not df_refining_filtered.empty:
-                last_row = df_refining_filtered.iloc[0] # Ambil baris teratas yang status Aquaregia-nya kosong
+                last_row = df_refining_filtered.iloc[0]
             else:
-                st.info(f"ℹ️ Semua data refining {reactor_label} sudah berstatus terisi/selesai. Menampilkan baris terakhir.")
                 last_row = df_refining.iloc[-1] if not df_refining.empty else df_param.iloc[-1]
         else:
             last_row = df_refining.iloc[-1] if not df_refining.empty else df_param.iloc[-1]
