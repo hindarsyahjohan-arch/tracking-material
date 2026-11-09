@@ -71,18 +71,24 @@ else:
 
     # ==========================================================================
     # PROSES 1: GOLD LEAD MAKING (BANTING / MELTING)
-    # Filter: Status Banting belum done atau kosong
+    # Filter: Ambil baris pertama yang 'Status Banting' nya KOSONG / NaN
     # ==========================================================================
     if "Gold Lead Making" in selected_process_type:
         df_banting = df_param.copy()
-        if 'Status Banting' in df_banting.columns:
-            # Ambil yang status bantingnya kosong/nan atau bukan 'done'/'selesai'
-            df_banting['Status Banting'] = df_banting['Status Banting'].astype(str).str.lower().str.strip()
-            df_banting = df_banting[df_banting['Status Banting'].isin(['nan', '', 'none', 'pending', 'process', '0'])]
-            if df_banting.empty:
-                df_banting = df_param # Fallback jika semua sudah done
         
-        last_row = df_banting.iloc[-1]
+        if 'Status Banting' in df_banting.columns:
+            # Saring baris yang statusnya kosong, NaN, atau string kosong
+            mask_kosong = df_banting['Status Banting'].isna() | (df_banting['Status Banting'].astype(str).str.strip().isin(['', 'nan', 'None']))
+            df_banting_filtered = df_banting[mask_kosong]
+            
+            if not df_banting_filtered.empty:
+                last_row = df_banting_filtered.iloc[0] # Ambil data teratas yang statusnya kosong
+            else:
+                st.info("ℹ️ Semua data banting sudah berstatus selesai (tidak ada yang kosong). Menampilkan baris terakhir sebagai referensi.")
+                last_row = df_banting.iloc[-1]
+        else:
+            last_row = df_banting.iloc[-1]
+
         gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
 
         st.markdown("### 🔥 Gold Lead Making Work Sheet (Banting / Melting)")
@@ -152,7 +158,7 @@ else:
 
     # ==========================================================================
     # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / 2)
-    # Filter: Status Aquaregia sudah selesai dan Kolom Reaktor sesuai (1 atau 2)
+    # Filter: Ambil baris di mana 'Status Aquaregia' KOSONG & 'Reaktor' sesuai (1 atau 2)
     # ==========================================================================
     else:
         is_reactor_2 = "Reactor 2" in selected_process_type
@@ -161,19 +167,23 @@ else:
 
         df_refining = df_param.copy()
         
-        # 1. Filter status Aquaregia sudah selesai
-        if 'Status Aquaregia' in df_refining.columns:
-            df_refining = df_refining[df_refining['Status Aquaregia'].astype(str).str.lower().isin(['selesai', 'done', 'completed', '1'])]
-            if df_refining.empty:
-                df_refining = df_param
-
-        # 2. Filter nomor Reaktor (1 atau 2)
+        # 1. Filter kolom Reaktor sesuai pilihan (1 atau 2)
         if 'Reaktor' in df_refining.columns:
             df_refining = df_refining[df_refining['Reaktor'].astype(str).str.strip() == str(target_reactor_val)]
-            if df_refining.empty:
-                df_refining = df_param
 
-        last_row = df_refining.iloc[-1]
+        # 2. Filter Status Aquaregia yang KOSONG / NaN
+        if 'Status Aquaregia' in df_refining.columns and not df_refining.empty:
+            mask_aquaregia_kosong = df_refining['Status Aquaregia'].isna() | (df_refining['Status Aquaregia'].astype(str).str.strip().isin(['', 'nan', 'None']))
+            df_refining_filtered = df_refining[mask_aquaregia_kosong]
+            
+            if not df_refining_filtered.empty:
+                last_row = df_refining_filtered.iloc[0] # Ambil baris teratas yang status Aquaregia-nya kosong
+            else:
+                st.info(f"ℹ️ Semua data refining {reactor_label} sudah berstatus terisi/selesai. Menampilkan baris terakhir.")
+                last_row = df_refining.iloc[-1] if not df_refining.empty else df_param.iloc[-1]
+        else:
+            last_row = df_refining.iloc[-1] if not df_refining.empty else df_param.iloc[-1]
+
         gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
 
         st.markdown(f"### ⚗️ Refining Process Work Sheet ({reactor_label})")
