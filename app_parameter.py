@@ -164,7 +164,7 @@ else:
         target_reactor_val = "2" if is_reactor_2 else "1"
         reactor_label = "Reactor 2" if is_reactor_2 else "Reactor 1"
 
-        # Pembersihan kolom Reaktor secara presisi (ubah float/string menjadi string angka bersih)
+        # 1. Filter baris berdasarkan Kolom Reaktor (angka 1 atau 2)
         if 'Reaktor' in df_refining.columns:
             def clean_reactor_val(val):
                 if pd.isna(val):
@@ -179,15 +179,14 @@ else:
         else:
             df_refining = pd.DataFrame()
 
-        # Filter baris di mana statusnya KOSONG / BELUM 'done'
-        status_col = 'Status Aquaregia' if 'Status Aquaregia' in df_refining.columns else ('Status Reaktor' if 'Status Reaktor' in df_refining.columns else None)
-        
-        if status_col and not df_refining.empty:
-            s_ref = df_refining[status_col].fillna('').astype(str).str.lower().str.strip()
+        # 2. Filter baris di mana Kolom 'Status Reaktor' KOSONG / BELUM 'done'
+        if 'Status Reaktor' in df_refining.columns and not df_refining.empty:
+            s_ref = df_refining['Status Reaktor'].fillna('').astype(str).str.lower().str.strip()
+            # Hanya ambil yang benar-benar kosong, nan, atau tidak mengandung kata 'done'
             mask_kosong = (s_ref == '') | (s_ref == 'nan') | (s_ref == 'none') | (s_ref == '-') | (~s_ref.str.contains('done'))
             df_refining_filtered = df_refining[mask_kosong]
         else:
-            df_refining_filtered = df_refining
+            df_refining_filtered = pd.DataFrame()
 
         if df_refining_filtered.empty:
             st.success(f"✅ Semua data refining {reactor_label} sudah berstatus **done**! Tidak ada antrean proses.")
