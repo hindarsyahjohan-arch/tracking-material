@@ -15,12 +15,10 @@ st.set_page_config(
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?gid=577877479#gid=577877479"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzlpjjCYCyMm9Ehw_3gCTo-9tlQOsQST44yOWqs2DNZmmsdTlXsb6yRpe1EGvUR8sj9/exec"
 
-# Fungsi untuk memuat data berdasarkan nama Sheet yang spesifik
 @st.cache_data(ttl=2)
 def load_sheet_data(sheet_name):
     try:
         base_url = URL_ASLI_SHEET.split("/edit")[0]
-        # Menggunakan parameter sheet=namasheet
         url_csv = f"{base_url}/gviz/tq?tqx=out:csv&sheet={sheet_name}&t={int(time.time())}"
         response = requests.get(url_csv, timeout=10)
         
@@ -67,25 +65,24 @@ st.divider()
 
 # ==========================================================================
 # PROSES 1: GOLD LEAD MAKING (BANTING / MELTING)
-# Membaca dari Sheet khusus Banting (Contoh: "Parameter_Banting")
-# Sesuaikan nama string sheet di bawah ini dengan tab sheet di Google Sheets Anda
 # ==========================================================================
 if "Gold Lead Making" in selected_process_type:
-    sheet_banting_name = "Parameter_Banting" # <-- Ganti jika nama tab sheet banting Anda berbeda
+    sheet_banting_name = "Parameter_Banting" # Sesuaikan nama tab di Google Sheets
     df_banting = load_sheet_data(sheet_banting_name)
 
     if df_banting.empty:
         st.warning(f"⚠️ Tidak dapat memuat data atau tab sheet **'{sheet_banting_name}'** kosong/tidak ditemukan.")
     else:
-        # Filter: Ambil baris yang Status Banting-nya KOSONG / NaN
+        # Filter: Ambil baris yang Status Banting-nya KOSONG atau BELUM 'done'
         if 'Status Banting' in df_banting.columns:
-            mask_kosong = df_banting['Status Banting'].isna() | (df_banting['Status Banting'].astype(str).str.strip().isin(['', 'nan', 'None']))
-            df_banting_filtered = df_banting[mask_kosong]
+            s = df_banting['Status Banting'].fillna('').astype(str).str.lower().str.strip()
+            mask_belum_done = (s == '') | (s == 'nan') | (s == 'none') | (~s.str.contains('done'))
+            df_banting_filtered = df_banting[mask_belum_done]
             
             if not df_banting_filtered.empty:
                 last_row = df_banting_filtered.iloc[0]
             else:
-                st.info("ℹ️ Semua data banting sudah berstatus selesai. Menampilkan baris terakhir.")
+                st.info("ℹ️ Semua data banting sudah berstatus 'done'. Menampilkan baris terakhir.")
                 last_row = df_banting.iloc[-1]
         else:
             last_row = df_banting.iloc[-1]
@@ -159,10 +156,9 @@ if "Gold Lead Making" in selected_process_type:
 
 # ==========================================================================
 # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / 2)
-# Membaca dari Sheet khusus Refining (Contoh: "Parameter_Refining")
 # ==========================================================================
 else:
-    sheet_refining_name = "Parameter_Refining" # <-- Ganti jika nama tab sheet refining Anda berbeda
+    sheet_refining_name = "Parameter_Refining" # Sesuaikan nama tab di Google Sheets
     df_refining = load_sheet_data(sheet_refining_name)
 
     if df_refining.empty:
@@ -177,15 +173,18 @@ else:
             df_refining['Reaktor_Clean'] = df_refining['Reaktor'].astype(str).str.replace('.0', '', regex=False).str.strip()
             df_refining = df_refining[df_refining['Reaktor_Clean'] == str(target_reactor_val)]
 
-        # 2. Filter baris di mana Status Aquaregia KOSONG / NaN
-        if 'Status Aquaregia' in df_refining.columns and not df_refining.empty:
-            mask_kosong = df_refining['Status Aquaregia'].isna() | (df_refining['Status Aquaregia'].astype(str).str.strip().isin(['', 'nan', 'None']))
-            df_refining_filtered = df_refining[mask_kosong]
+        # 2. Filter baris di mana Status Aquaregia KOSONG atau BELUM 'done'
+        status_col = 'Status Aquaregia' if 'Status Aquaregia' in df_refining.columns else ('Status Reaktor' if 'Status Reaktor' in df_refining.columns else None)
+        
+        if status_col and not df_refining.empty:
+            s_ref = df_refining[status_col].fillna('').astype(str).str.lower().str.strip()
+            mask_belum_done = (s_ref == '') | (s_ref == 'nan') | (s_ref == 'none') | (~s_ref.str.contains('done'))
+            df_refining_filtered = df_refining[mask_belum_done]
             
             if not df_refining_filtered.empty:
                 last_row = df_refining_filtered.iloc[0]
             else:
-                st.info(f"ℹ️ Semua data refining {reactor_label} sudah berstatus terisi/selesai. Menampilkan baris terakhir.")
+                st.info(f"ℹ️ Semua data refining {reactor_label} sudah berstatus 'done'. Menampilkan baris terakhir.")
                 last_row = df_refining.iloc[-1] if not df_refining.empty else df_refining.iloc[-1]
         else:
             last_row = df_refining.iloc[-1] if not df_refining.empty else df_refining.iloc[-1]
