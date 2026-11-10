@@ -15,11 +15,13 @@ st.set_page_config(
 URL_ASLI_SHEET = "https://docs.google.com/spreadsheets/d/1haDJKJFD_o4tOwXSE4kw4wXHjnfM9UCo3LwQXztrWLk/edit?gid=577877479#gid=577877479"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzlpjjCYCyMm9Ehw_3gCTo-9tlQOsQST44yOWqs2DNZmmsdTlXsb6yRpe1EGvUR8sj9/exec"
 
+# Fungsi untuk memuat data berdasarkan nama Sheet yang spesifik
 @st.cache_data(ttl=2)
-def load_parameter_data():
+def load_sheet_data(sheet_name):
     try:
         base_url = URL_ASLI_SHEET.split("/edit")[0]
-        url_csv = f"{base_url}/gviz/tq?tqx=out:csv&sheet=Parameter&t={int(time.time())}"
+        # Menggunakan parameter sheet=namasheet
+        url_csv = f"{base_url}/gviz/tq?tqx=out:csv&sheet={sheet_name}&t={int(time.time())}"
         response = requests.get(url_csv, timeout=10)
         
         if response.status_code == 200:
@@ -30,51 +32,52 @@ def load_parameter_data():
     except Exception as e:
         return pd.DataFrame()
 
-df_param = load_parameter_data()
-
 st.title("🧪 Production Work Sheet & Parameters Form")
 st.caption("Auto-synced data from Google Sheets with Operator Input Forms")
 st.divider()
 
-if df_param.empty:
-    st.warning("⚠️ No data found in the 'Parameter' tab or connection blocked.")
-    st.info("Please make sure the Google Sheet 'Parameter' tab is populated.")
-else:
-    def get_val(df_row, possible_keys, default="-"):
-        for key in possible_keys:
-            if key in df_row and pd.notna(df_row[key]):
-                return df_row[key]
-        return default
+def get_val(df_row, possible_keys, default="-"):
+    for key in possible_keys:
+        if key in df_row and pd.notna(df_row[key]):
+            return df_row[key]
+    return default
 
-    def clean_float(val):
-        try:
-            if pd.isna(val):
-                return 0.0
-            cleaned = str(val).replace('%', '').replace(',', '').strip()
-            return float(cleaned)
-        except:
+def clean_float(val):
+    try:
+        if pd.isna(val):
             return 0.0
+        cleaned = str(val).replace('%', '').replace(',', '').strip()
+        return float(cleaned)
+    except:
+        return 0.0
 
-    # --------------------------------------------------------------------------
-    # PILIHAN PROSES UTAMA
-    # --------------------------------------------------------------------------
-    selected_process_type = st.selectbox(
-        "📌 Select Work Sheet Process Type:",
-        [
-            "1. Gold Lead Making (Banting / Melting)",
-            "2. Refining Process (Reactor 1)",
-            "3. Refining Process (Reactor 2)"
-        ]
-    )
+# --------------------------------------------------------------------------
+# PILIHAN PROSES UTAMA
+# --------------------------------------------------------------------------
+selected_process_type = st.selectbox(
+    "📌 Select Work Sheet Process Type:",
+    [
+        "1. Gold Lead Making (Banting / Melting)",
+        "2. Refining Process (Reactor 1)",
+        "3. Refining Process (Reactor 2)"
+    ]
+)
 
-    st.divider()
+st.divider()
 
-    # ==========================================================================
-    # PROSES 1: GOLD LEAD MAKING (BANTING / MELTING)
-    # ==========================================================================
-    if "Gold Lead Making" in selected_process_type:
-        df_banting = df_param.copy()
-        
+# ==========================================================================
+# PROSES 1: GOLD LEAD MAKING (BANTING / MELTING)
+# Membaca dari Sheet khusus Banting (Contoh: "Parameter_Banting")
+# Sesuaikan nama string sheet di bawah ini dengan tab sheet di Google Sheets Anda
+# ==========================================================================
+if "Gold Lead Making" in selected_process_type:
+    sheet_banting_name = "Parameter_Banting" # <-- Ganti jika nama tab sheet banting Anda berbeda
+    df_banting = load_sheet_data(sheet_banting_name)
+
+    if df_banting.empty:
+        st.warning(f"⚠️ Tidak dapat memuat data atau tab sheet **'{sheet_banting_name}'** kosong/tidak ditemukan.")
+    else:
+        # Filter: Ambil baris yang Status Banting-nya KOSONG / NaN
         if 'Status Banting' in df_banting.columns:
             mask_kosong = df_banting['Status Banting'].isna() | (df_banting['Status Banting'].astype(str).str.strip().isin(['', 'nan', 'None']))
             df_banting_filtered = df_banting[mask_kosong]
@@ -82,6 +85,7 @@ else:
             if not df_banting_filtered.empty:
                 last_row = df_banting_filtered.iloc[0]
             else:
+                st.info("ℹ️ Semua data banting sudah berstatus selesai. Menampilkan baris terakhir.")
                 last_row = df_banting.iloc[-1]
         else:
             last_row = df_banting.iloc[-1]
@@ -153,22 +157,27 @@ else:
                 except Exception as e:
                     st.error(f"❌ Connection error: {e}")
 
-    # ==========================================================================
-    # PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / 2)
-    # ==========================================================================
+# ==========================================================================
+# PROSES 2 & 3: REFINING PROCESS (REACTOR 1 / 2)
+# Membaca dari Sheet khusus Refining (Contoh: "Parameter_Refining")
+# ==========================================================================
+else:
+    sheet_refining_name = "Parameter_Refining" # <-- Ganti jika nama tab sheet refining Anda berbeda
+    df_refining = load_sheet_data(sheet_refining_name)
+
+    if df_refining.empty:
+        st.warning(f"⚠️ Tidak dapat memuat data atau tab sheet **'{sheet_refining_name}'** kosong/tidak ditemukan.")
     else:
         is_reactor_2 = "Reactor 2" in selected_process_type
         target_reactor_val = 2 if is_reactor_2 else 1
         reactor_label = "Reactor 2" if is_reactor_2 else "Reactor 1"
 
-        df_refining = df_param.copy()
-        
-        # Konversi kolom Reaktor ke string agar pencocokan akurat
+        # 1. Filter baris berdasarkan Kolom Reaktor (1 atau 2)
         if 'Reaktor' in df_refining.columns:
             df_refining['Reaktor_Clean'] = df_refining['Reaktor'].astype(str).str.replace('.0', '', regex=False).str.strip()
             df_refining = df_refining[df_refining['Reaktor_Clean'] == str(target_reactor_val)]
 
-        # Filter baris di mana Status Aquaregia KOSONG / NaN
+        # 2. Filter baris di mana Status Aquaregia KOSONG / NaN
         if 'Status Aquaregia' in df_refining.columns and not df_refining.empty:
             mask_kosong = df_refining['Status Aquaregia'].isna() | (df_refining['Status Aquaregia'].astype(str).str.strip().isin(['', 'nan', 'None']))
             df_refining_filtered = df_refining[mask_kosong]
@@ -176,9 +185,10 @@ else:
             if not df_refining_filtered.empty:
                 last_row = df_refining_filtered.iloc[0]
             else:
-                last_row = df_refining.iloc[-1] if not df_refining.empty else df_param.iloc[-1]
+                st.info(f"ℹ️ Semua data refining {reactor_label} sudah berstatus terisi/selesai. Menampilkan baris terakhir.")
+                last_row = df_refining.iloc[-1] if not df_refining.empty else df_refining.iloc[-1]
         else:
-            last_row = df_refining.iloc[-1] if not df_refining.empty else df_param.iloc[-1]
+            last_row = df_refining.iloc[-1] if not df_refining.empty else df_refining.iloc[-1]
 
         gsheet_operator = str(get_val(last_row, ["Operator", "Lead Operator"], "Nico"))
 
@@ -282,7 +292,4 @@ else:
                     except Exception as e:
                         st.error(f"❌ Connection error: {e}")
 
-    # Tambahkan Expander Debug untuk melihat isi data mentah dari Google Sheet
-    with st.expander("🛠️ Debug Data Google Sheet"):
-        st.write("Data mentah yang terbaca dari tab Parameter:")
-        st.dataframe(df_param)
+st.caption("🔄 Form inputs synchronized with separate Google Sheets parameter tabs.")
