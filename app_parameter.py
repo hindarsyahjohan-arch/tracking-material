@@ -37,7 +37,7 @@ def get_val(df_row, possible_keys, default="-"):
     for key in possible_keys:
         if key in df_row and pd.notna(df_row[key]):
             return df_row[key]
-        return default
+    return default
 
 def clean_float(val):
     try:
@@ -72,7 +72,6 @@ if "Gold Lead Making" in selected_process_type:
     if df_banting.empty:
         st.warning(f"⚠️ Tab sheet **'{sheet_banting_name}'** tidak ditemukan atau kosong.")
     else:
-        # Filter ketat: Ambil HANYA baris yang statusnya kosong/nan/belum done
         if 'Status Banting' in df_banting.columns:
             s = df_banting['Status Banting'].fillna('').astype(str).str.lower().str.strip()
             mask_kosong = (s == '') | (s == 'nan') | (s == 'none') | (s == '-') | (~s.str.contains('done'))
@@ -162,15 +161,25 @@ else:
         st.warning(f"⚠️ Tab sheet **'{sheet_refining_name}'** tidak ditemukan atau kosong.")
     else:
         is_reactor_2 = "Reactor 2" in selected_process_type
-        target_reactor_val = 2 if is_reactor_2 else 1
+        target_reactor_val = "2" if is_reactor_2 else "1"
         reactor_label = "Reactor 2" if is_reactor_2 else "Reactor 1"
 
-        # 1. Filter baris BERDASARKAN KOLOM REAKTOR secara ketat (angka 1 atau 2)
+        # Pembersihan kolom Reaktor secara presisi (ubah float/string menjadi string angka bersih)
         if 'Reaktor' in df_refining.columns:
-            df_refining['Reaktor_Clean'] = df_refining['Reaktor'].astype(str).str.replace('.0', '', regex=False).str.strip()
-            df_refining = df_refining[df_refining['Reaktor_Clean'] == str(target_reactor_val)]
+            def clean_reactor_val(val):
+                if pd.isna(val):
+                    return ""
+                v_str = str(val).strip()
+                if v_str.endswith('.0'):
+                    v_str = v_str[:-2]
+                return v_str
 
-        # 2. Filter baris di mana statusnya KOSONG / BELUM 'done'
+            df_refining['Reaktor_Clean'] = df_refining['Reaktor'].apply(clean_reactor_val)
+            df_refining = df_refining[df_refining['Reaktor_Clean'] == target_reactor_val]
+        else:
+            df_refining = pd.DataFrame()
+
+        # Filter baris di mana statusnya KOSONG / BELUM 'done'
         status_col = 'Status Aquaregia' if 'Status Aquaregia' in df_refining.columns else ('Status Reaktor' if 'Status Reaktor' in df_refining.columns else None)
         
         if status_col and not df_refining.empty:
